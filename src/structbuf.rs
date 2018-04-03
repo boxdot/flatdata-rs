@@ -6,6 +6,8 @@ use memory;
 use std::ops;
 use std::slice;
 
+/// A container holding a single flatdata struct in memory, and providing read and write access to
+/// it.
 pub struct StructBuf<T: Struct> {
     buffer: Vec<u8>,
     data: T::Mut,
