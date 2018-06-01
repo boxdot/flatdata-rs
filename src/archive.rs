@@ -259,7 +259,7 @@ macro_rules! define_struct {
 
         impl ::std::convert::AsRef<$name> for $name_mut {
             fn as_ref(&self) -> &$name {
-                unsafe { ::std::mem::transmute(&self) }
+                unsafe { &*(self as *const $name_mut as *const $name) }
             }
         }
      }
