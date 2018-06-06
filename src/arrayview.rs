@@ -80,7 +80,7 @@ impl<'a, T: Struct> ArrayView<'a, T> {
     /// # Panics
     ///
     /// Panics if index is greater than or equal to `ArrayView::len()`.
-    pub fn at(&self, index: usize) -> Handle<T> {
+    pub fn at(&self, index: usize) -> Handle<'a, T> {
         let index = index * T::SIZE_IN_BYTES;
         assert!(index + T::SIZE_IN_BYTES <= self.data.len());
         Handle::new(T::from(&self.data[index]))
@@ -150,8 +150,7 @@ impl<'a, T: Struct> iter::ExactSizeIterator for ArrayViewIter<'a, T> {
 
 impl<'a, T: Struct> fmt::Debug for ArrayViewIter<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let preview = self
-            .view
+        let preview = self.view
             .iter()
             .skip(self.next_pos)
             .take(super::DEBUG_PREVIEW_LEN);

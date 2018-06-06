@@ -56,7 +56,7 @@ where
     /// # Panics
     ///
     /// Panics if index is greater than or equal to `MultiArrayView::len()`.
-    pub fn at(&self, index: usize) -> MultiArrayViewItemIter<Ts> {
+    pub fn at(&self, index: usize) -> MultiArrayViewItemIter<'a, Ts> {
         let start = self.index.at(index).value();
         let end = self.index.at(index + 1).value();
         MultiArrayViewItemIter {
@@ -109,8 +109,7 @@ where
     Ts: VariadicStruct,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let preview: Vec<(usize, Vec<_>)> = self
-            .iter()
+        let preview: Vec<(usize, Vec<_>)> = self.iter()
             .take(super::DEBUG_PREVIEW_LEN)
             .enumerate()
             .map(|(index, item)| (index, item.collect()))
