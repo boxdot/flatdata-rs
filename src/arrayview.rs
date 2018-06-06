@@ -48,7 +48,6 @@ use std::slice;
 #[derive(Clone)]
 pub struct ArrayView<'a, T: 'a> {
     data: &'a [u8],
-    len: usize,
     _phantom: marker::PhantomData<T>,
 }
 
@@ -59,19 +58,18 @@ impl<'a, T: Struct> ArrayView<'a, T> {
     pub fn new(mem_descr: &MemoryDescriptor) -> Self {
         Self {
             data: unsafe { slice::from_raw_parts(mem_descr.data(), mem_descr.size_in_bytes()) },
-            len: mem_descr.size_in_bytes() / T::SIZE_IN_BYTES,
             _phantom: marker::PhantomData,
         }
     }
 
     /// Number of elements in the array.
     pub fn len(&self) -> usize {
-        self.len
+        self.data.len() / T::SIZE_IN_BYTES
     }
 
     /// Return `true` if the array is empty.
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.len() == 0
     }
 
     /// Returns a read-only handle to the element in the array at position
@@ -108,7 +106,7 @@ impl<'a, T: Struct> fmt::Debug for ArrayView<'a, T> {
             "ArrayView {{ len: {}, data: {:?}{} }}",
             self.len(),
             preview,
-            if self.len <= super::DEBUG_PREVIEW_LEN {
+            if self.len() <= super::DEBUG_PREVIEW_LEN {
                 ""
             } else {
                 "..."
