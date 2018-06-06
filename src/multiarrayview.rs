@@ -78,7 +78,7 @@ where
 /// Iterator through elements of an array item.
 ///
 /// An item may be empty.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MultiArrayViewItemIter<'a, Ts: 'a> {
     data: *const u8,
     end: *const u8,
@@ -129,7 +129,7 @@ where
 }
 
 /// Iterator through items of an multivector.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MultiArrayViewIter<'a, Idx: 'a + Index, Ts: 'a + VariadicStruct> {
     view: &'a MultiArrayView<'a, Idx, Ts>,
     next_pos: usize,

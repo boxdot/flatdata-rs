@@ -124,6 +124,7 @@ impl<'a, T: Struct> AsRef<[u8]> for ArrayView<'a, T> {
 }
 
 /// Iterator through elements of `ArrayView`.
+#[derive(Clone)]
 pub struct ArrayViewIter<'a, T: 'a + Struct> {
     view: &'a ArrayView<'a, T>,
     next_pos: usize,
