@@ -165,8 +165,15 @@ pub trait ArchiveBuilder: Clone {
 /// Macro used by generator to define a flatdata struct.
 #[macro_export]
 macro_rules! define_struct {
+    // Simpler case where type and primitive_type coincide.
     ($name:ident, $name_mut:ident, $schema:expr, $size_in_bytes:expr
-        $(,($field:ident, $field_setter:ident, $type:tt, $offset:expr, $bit_size:expr))*) =>
+        $(,($field:ident, $field_setter:ident, $type:tt, $offset:expr, $bit_size:expr))*) => {
+        define_struct!($name, $name_mut, $schema, $size_in_bytes
+            $(,($field, $field_setter, $type : $type, $offset, $bit_size))*
+        );
+    };
+    ($name:ident, $name_mut:ident, $schema:expr, $size_in_bytes:expr
+        $(,($field:ident, $field_setter:ident, $type:tt : $primitive_type:tt, $offset:expr, $bit_size:expr))*) =>
     {
         // TODO: We cannot store `&u8` here, since then we need to annotate the type with a
         // lifetime, which would enforce an annotation in the trait, and this would bind the
@@ -180,7 +187,8 @@ macro_rules! define_struct {
 
         impl $name {
             $(pub fn $field(&self) -> $type {
-                read_bytes!($type, self.data, $offset, $bit_size)
+                let value = read_bytes!($primitive_type, self.data, $offset, $bit_size);
+                unsafe { ::std::mem::transmute::<$primitive_type, $type>(value) }
             })*
         }
 
@@ -188,7 +196,7 @@ macro_rules! define_struct {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 write!(f,
                     concat!(stringify!($name), " {{ ",
-                        intersperse!($(concat!( stringify!($field), ": {}")), *), " }}"),
+                        intersperse!($(concat!( stringify!($field), ": {:?}")), *), " }}"),
                     $(self.$field(),)*)
             }
         }
@@ -222,7 +230,8 @@ macro_rules! define_struct {
 
         impl $name_mut {
             $(pub fn $field(&self) -> $type {
-                read_bytes!($type, self.data, $offset, $bit_size)
+                let value = read_bytes!($primitive_type, self.data, $offset, $bit_size);
+                unsafe { ::std::mem::transmute::<$primitive_type, $type>(value) }
             })*
 
             $(pub fn $field_setter(&mut self, value: $type) {
@@ -262,7 +271,7 @@ macro_rules! define_struct {
                 unsafe { &*(self as *const $name_mut as *const $name) }
             }
         }
-     }
+    };
 }
 
 /// Macro used by generator to define a flatdata index.
