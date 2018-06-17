@@ -173,7 +173,7 @@ macro_rules! define_struct {
         );
     };
     ($name:ident, $name_mut:ident, $schema:expr, $size_in_bytes:expr
-        $(,($field:ident, $field_setter:ident, $type:tt : $primitive_type:tt, $offset:expr, $bit_size:expr))*) =>
+        $(,($field:ident, $field_setter:ident, $type:tt: $primitive_type:tt, $offset:expr, $bit_size:expr))*) =>
     {
         // TODO: We cannot store `&u8` here, since then we need to annotate the type with a
         // lifetime, which would enforce an annotation in the trait, and this would bind the
@@ -641,6 +641,7 @@ macro_rules! define_archive {
 
 #[cfg(test)]
 mod test {
+    use super::super::helper::Int;
     use super::super::structbuf::StructBuf;
 
     #[test]
@@ -658,4 +659,47 @@ mod test {
         let output = format!("{:?}", a);
         assert_eq!(output, "StructBuf { resource: A { x: 0, y: 0 } }");
     }
+
+    macro_rules! define_enum_test {
+        ($test_name:ident, $type:tt, $is_signed:expr) => {
+            #[test]
+            #[allow(dead_code)]
+            fn $test_name() {
+                #[derive(Debug, PartialEq, Eq)]
+                #[repr($type)]
+                pub enum Variant {
+                    X,
+                    Y,
+                }
+
+                impl Int for Variant {
+                    const IS_SIGNED: bool = $is_signed;
+                }
+
+                define_struct!(A, AMut, "no_schema", 1, (x, set_x, Variant: $type, 0, 2));
+                let mut a = StructBuf::<A>::new();
+                let output = format!("{:?}", a);
+                assert_eq!(output, "StructBuf { resource: A { x: X } }");
+
+                a.set_x(Variant::Y);
+                let output = format!("{:?}", a);
+                assert_eq!(output, "StructBuf { resource: A { x: Y } }");
+            }
+        };
+    }
+
+    define_enum_test!(test_enum_u8, u8, false);
+    define_enum_test!(test_enum_u16, u16, false);
+    define_enum_test!(test_enum_u32, u32, false);
+    define_enum_test!(test_enum_u64, u64, false);
+
+    // Note: Right now, there a regression bug for binary enums with underlying
+    // type i8: https://github.com/rust-lang/rust/issues/51582
+    //
+    // Until it is backported into stable release, we have to disable this test.
+    //
+    // define_enum_test!(test_enum_i8, i8, true);
+    define_enum_test!(test_enum_i16, i16, true);
+    define_enum_test!(test_enum_i32, i32, true);
+    define_enum_test!(test_enum_i64, i64, true);
 }
