@@ -706,13 +706,12 @@ mod test {
     define_enum_test!(test_enum_u64_1, u64, false, 0, 1);
     define_enum_test!(test_enum_u64_2, u64, false, 0, 2);
 
-    // Note: Right now, there a regression bug for binary enums with underlying
-    // type i8: https://github.com/rust-lang/rust/issues/51582
+    // Note: There is a regression bug for binary enums with underlying type i8:
+    // https://github.com/rust-lang/rust/issues/51582
     //
-    // Until it is backported into stable release, we have to disable this test.
-    //
-    // define_enum_test!(test_enum_i8, i8, true, 0, 1);
-    // define_enum_test!(test_enum_i8, i8, true, 0, -1);
+    // If the test crashes, please update your compiler.
+    define_enum_test!(test_enum_i8_1, i8, true, 0, 1);
+    define_enum_test!(test_enum_i8_2, i8, true, 0, -1);
     define_enum_test!(test_enum_i16_1, i16, true, 0, 1);
     define_enum_test!(test_enum_i16_2, i16, true, 0, -1);
     define_enum_test!(test_enum_i32_1, i32, true, 0, 1);
