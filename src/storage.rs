@@ -336,7 +336,9 @@ impl io::Write for ResourceHandle {
             .as_ref()
             .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "stream closed"))?;
         let mut mut_stream = stream.borrow_mut();
-        mut_stream.write(buf)
+        let size = mut_stream.write(buf)?;
+        self.size_in_bytes += size;
+        Ok(size)
     }
 
     fn flush(&mut self) -> io::Result<()> {
