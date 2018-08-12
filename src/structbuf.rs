@@ -4,6 +4,7 @@
 use archive::Struct;
 use memory;
 
+use std::cmp;
 use std::fmt;
 use std::ops;
 use std::slice;
@@ -25,7 +26,11 @@ use std::slice;
 /// # fn main() {
 /// use flatdata::StructBuf;
 ///
-/// define_struct!(A, AMut, "no_schema", 4,
+/// define_struct!(
+///     A,
+///     AMut,
+///     "no_schema",
+///     4,
 ///     (x, set_x, u32, 0, 16),
 ///     (y, set_y, u32, 16, 16)
 /// );
@@ -92,6 +97,18 @@ impl<T: Struct> ops::DerefMut for StructBuf<T> {
 impl<T: Struct> AsRef<[u8]> for StructBuf<T> {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
+    }
+}
+
+impl<T: Struct> cmp::PartialEq for StructBuf<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data.as_ref() == other.data.as_ref()
+    }
+}
+
+impl<T: Struct> cmp::PartialOrd for StructBuf<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        self.data.as_ref().partial_cmp(other.data.as_ref())
     }
 }
 
