@@ -329,6 +329,26 @@ impl fmt::Debug for ResourceHandle {
     }
 }
 
+impl io::Write for ResourceHandle {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let stream = self
+            .stream
+            .as_ref()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "stream closed"))?;
+        let mut mut_stream = stream.borrow_mut();
+        mut_stream.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        let stream = self
+            .stream
+            .as_ref()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "stream closed"))?;
+        let mut mut_stream = stream.borrow_mut();
+        mut_stream.flush()
+    }
+}
+
 fn diff(left: &str, right: &str) -> String {
     use diff;
     diff::lines(left, right)
