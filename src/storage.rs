@@ -2,7 +2,7 @@ use archive::{ArchiveBuilder, Index, Struct, VariadicStruct};
 use error::ResourceStorageError;
 use memory::{SizeType, PADDING_SIZE};
 use multivector::MultiVector;
-use vector::ExternalVector;
+use vector::{ExternalVector, SortedExternalVector};
 
 use std::cell::RefCell;
 use std::fmt;
@@ -155,6 +155,23 @@ pub fn create_external_vector<T: Struct>(
     let data_writer = storage.create_output_stream(resource_name)?;
     let handle = ResourceHandle::new(data_writer)?;
     Ok(ExternalVector::new(handle))
+}
+
+#[allow(warnings)]
+pub fn create_sorted_external_vector<T: Struct>(
+    storage: &mut ResourceStorage,
+    resource_name: &str,
+    schema: &str,
+) -> io::Result<SortedExternalVector<T>> {
+    // write schema
+    let schema_name = format!("{}.schema", resource_name);
+    let stream = storage.create_output_stream(&schema_name)?;
+    stream.borrow_mut().write_all(schema.as_bytes())?;
+
+    // create external vector
+    let data_writer = storage.create_output_stream(resource_name)?;
+    let handle = ResourceHandle::new(data_writer)?;
+    Ok(SortedExternalVector::new(handle)?)
 }
 
 /// Helper for creating a multivector in the given resource storage.
@@ -359,8 +376,7 @@ fn diff(left: &str, right: &str) -> String {
             diff::Result::Left(l) => format!("-{}", l),
             diff::Result::Both(l, _) => format!(" {}", l),
             diff::Result::Right(r) => format!("+{}", r),
-        })
-        .collect::<Vec<_>>()
+        }).collect::<Vec<_>>()
         .join("\n")
 }
 

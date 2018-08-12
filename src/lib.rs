@@ -43,11 +43,16 @@
 //! [`ArrayView`]: struct.ArrayView.html
 //! [`MultiArrayView`]: struct.MultiArrayView.html
 
-#![deny(missing_docs, missing_debug_implementations, warnings)]
-// #![allow(intra_doc_link_resolution_failure)]
+// #![deny(missing_docs)]
+#![deny(warnings)]
+#![deny(missing_debug_implementations)]
 
 extern crate diff;
+extern crate extsort;
 extern crate memmap;
+#[cfg(test)]
+extern crate rand;
+extern crate tempfile;
 
 /// Number of elements in `ArrayView`, `MultiArrayView`, and `Vector` to show
 /// in Debug output.
