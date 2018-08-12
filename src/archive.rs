@@ -42,7 +42,7 @@ use std::rc::Rc;
 /// A type in flatdata used for reading data.
 ///
 /// Each struct in generated code implements this trait.
-pub trait Struct: Clone + Debug + PartialEq + From<*const u8> {
+pub trait Struct: Clone + Debug + PartialOrd + From<*const u8> {
     /// Schema of the type. Used only for debug and inspection purposes.
     const SCHEMA: &'static str;
     /// Size of an object of this type in bytes.
@@ -204,6 +204,19 @@ macro_rules! define_struct {
         impl ::std::cmp::PartialEq for $name {
             fn eq(&self, other: &$name) -> bool {
                 $(self.$field() == other.$field()) && *
+            }
+        }
+
+        impl ::std::cmp::PartialOrd for $name {
+            fn partial_cmp(&self, other: &$name) -> Option<::std::cmp::Ordering> {
+                let orderings = &[
+                    $(self.$field().partial_cmp(&other.$field()), )*
+                ];
+                orderings
+                    .iter()
+                    .fold(Some(::std::cmp::Ordering::Equal), |acc, right| {
+                        acc.and_then(|left| right.map(|right| left.then(right)))
+                    })
             }
         }
 
@@ -728,7 +741,7 @@ mod test {
             #[test]
             #[allow(dead_code)]
             fn $test_name() {
-                #[derive(Debug, PartialEq, Eq)]
+                #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
                 #[repr($type)]
                 pub enum Variant {
                     X = $val1,
@@ -819,5 +832,50 @@ mod test {
             (arch, SubArch, SubArchBuilder, "arch schema", false),
             (opt_arch, SubArch, SubArchBuilder, "opt_arch schema", true)
         );
+    }
+
+    #[test]
+    #[allow(warnings)]
+    fn test_ordering() {
+        use std::cmp::Ordering;
+        use std::cmp::PartialOrd;
+
+        define_struct!(
+            A,
+            AMut,
+            "no_schema",
+            4,
+            (x, set_x, u32, 0, 16),
+            (y, set_y, u32, 16, 16)
+        );
+
+        let mut a = StructBuf::<A>::new();
+        a.set_x(1);
+        a.set_y(2);
+
+        let mut b = StructBuf::<A>::new();
+
+        b.set_x(2);
+        assert!(a != b);
+        assert_eq!(a.partial_cmp(&b), Some(Ordering::Less));
+
+        b.set_x(1);
+        b.set_y(2);
+        assert_eq!(a, b);
+        assert_eq!(a.partial_cmp(&b), Some(Ordering::Equal));
+
+        b.set_x(1);
+        b.set_y(3);
+        assert!(a != b);
+        assert_eq!(a.partial_cmp(&b), Some(Ordering::Less));
+
+        b.set_x(1);
+        b.set_y(1);
+        assert!(a != b);
+        assert_eq!(a.partial_cmp(&b), Some(Ordering::Greater));
+
+        b.set_x(0);
+        assert!(a != b);
+        assert_eq!(a.partial_cmp(&b), Some(Ordering::Greater));
     }
 }

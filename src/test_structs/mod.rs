@@ -1,14 +1,15 @@
 #![cfg(test)]
 
-use std::convert;
-use std::mem;
-use std::slice;
-
 use archive::{Index, IndexMut, Struct, StructMut, VariadicStruct};
 use handle::HandleMut;
 use memory;
 
-#[derive(Clone, Debug, PartialEq)]
+use std::cmp;
+use std::convert;
+use std::mem;
+use std::slice;
+
+#[derive(Clone, Debug)]
 pub struct Idx {
     data: *const u8,
 }
@@ -25,6 +26,18 @@ impl Struct for Idx {
 impl convert::From<*const u8> for Idx {
     fn from(data: *const u8) -> Self {
         Self { data }
+    }
+}
+
+impl cmp::PartialEq for Idx {
+    fn eq(&self, other: &Idx) -> bool {
+        self.value() == other.value()
+    }
+}
+
+impl cmp::PartialOrd for Idx {
+    fn partial_cmp(&self, other: &Idx) -> Option<cmp::Ordering> {
+        self.value().partial_cmp(&other.value())
     }
 }
 
@@ -66,7 +79,7 @@ impl IndexMut for IdxMut {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct A {
     data: *const u8,
 }
@@ -84,6 +97,27 @@ impl A {
 impl convert::From<*const u8> for A {
     fn from(data: *const u8) -> Self {
         Self { data }
+    }
+}
+
+impl cmp::PartialEq for A {
+    fn eq(&self, other: &Self) -> bool {
+        self.x() == other.x() && self.y() == other.y()
+    }
+}
+
+impl cmp::PartialOrd for A {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        let orderings = &[
+            self.x().partial_cmp(&other.x()),
+            self.y().partial_cmp(&other.y()),
+        ];
+
+        orderings
+            .iter()
+            .fold(Some(cmp::Ordering::Equal), |acc, right| {
+                acc.and_then(|left| right.map(|right| left.then(right)))
+            })
     }
 }
 
