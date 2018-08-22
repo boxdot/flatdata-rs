@@ -1,5 +1,6 @@
 use archive::Struct;
 use arrayview::ArrayView;
+use error::ResourceStorageError;
 use handle::{Handle, HandleMut};
 use memory;
 use storage::{MemoryDescriptor, ResourceHandle};
@@ -332,9 +333,12 @@ impl<T: Struct> ExternalVector<T> {
     /// After this method is called, more data cannot be written into this
     /// vector. An external vector *must* be closed, otherwise it will
     /// panic on drop (in debug mode).
-    pub fn close(&mut self) -> io::Result<()> {
-        self.flush()?;
-        self.resource_handle.borrow_mut().close()
+    pub fn close(&mut self) -> Result<(), ResourceStorageError> {
+        let res = self.flush();
+        res.map_err(|e| {
+            ResourceStorageError::from_io_error(e, self.resource_handle.borrow().name().into())
+        })?;
+        self.resource_handle.borrow_mut().close().map(|_| ())
     }
 }
 

@@ -157,7 +157,7 @@ pub fn create_external_vector<T: Struct>(
         mut_storage.create_output_stream(resource_name)?
     };
 
-    let handle = ResourceHandle::new(data_writer)?;
+    let handle = ResourceHandle::new(data_writer, storage, resource_name.into(), schema.into())?;
     Ok(ExternalVector::new(handle))
 }
 
@@ -188,7 +188,7 @@ pub fn create_multi_vector<Idx: Index, Ts: VariadicStruct>(
     };
 
     // create multi vector
-    let handle = ResourceHandle::new(data_writer)?;
+    let handle = ResourceHandle::new(data_writer, storage, resource_name.into(), schema.into())?;
     Ok(MultiVector::new(index, handle))
 }
 
@@ -270,11 +270,19 @@ impl MemoryDescriptor {
 pub struct ResourceHandle {
     stream: Option<Rc<RefCell<Stream>>>,
     size_in_bytes: usize,
+    storage: Rc<RefCell<ResourceStorage>>,
+    resource_name: String,
+    resource_schema: String,
 }
 
 impl ResourceHandle {
     /// Create a new resource handle from a stream.
-    pub fn new(stream: Rc<RefCell<Stream>>) -> io::Result<Self> {
+    pub fn new(
+        stream: Rc<RefCell<Stream>>,
+        storage: Rc<RefCell<ResourceStorage>>,
+        resource_name: String,
+        resource_schema: String,
+    ) -> io::Result<Self> {
         // Reserve space for size in the beginning of the stream, which will be updated
         // later.
         {
@@ -284,6 +292,9 @@ impl ResourceHandle {
         Ok(Self {
             stream: Some(stream),
             size_in_bytes: 0,
+            storage,
+            resource_name,
+            resource_schema,
         })
     }
 
@@ -306,24 +317,40 @@ impl ResourceHandle {
         res
     }
 
+    pub fn name(&self) -> &str {
+        &self.resource_name
+    }
+
     /// Close the underlying stream and write the header containing the size in
     /// bytes of written data.
-    pub fn close(&mut self) -> io::Result<()> {
+    pub fn close(&mut self) -> Result<MemoryDescriptor, ResourceStorageError> {
         {
-            let stream = self
-                .stream
-                .as_ref()
-                .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "stream closed"))?;
+            let resource_name = self.resource_name.clone();
+            let into_storage_error =
+                |e| ResourceStorageError::from_io_error(e, resource_name.clone());
+
+            let stream = self.stream.as_ref().ok_or_else(|| {
+                into_storage_error(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "stream closed",
+                ))
+            })?;
 
             let mut mut_stream = stream.borrow_mut();
-            write_padding(mut_stream.deref_mut())?;
+            write_padding(mut_stream.deref_mut()).map_err(into_storage_error)?;
 
             // Update size in the beginning of the file
-            mut_stream.seek(io::SeekFrom::Start(0u64))?;
-            write_size(self.size_in_bytes as u64, mut_stream.deref_mut())?;
+            mut_stream
+                .seek(io::SeekFrom::Start(0u64))
+                .map_err(into_storage_error)?;
+            write_size(self.size_in_bytes as u64, mut_stream.deref_mut())
+                .map_err(into_storage_error)?;
         }
         self.stream = None;
-        Ok(())
+        // return unterlying memory descriptor to the written data
+        self.storage
+            .borrow_mut()
+            .read(&self.resource_name, &self.resource_schema)
     }
 }
 

@@ -1,10 +1,11 @@
 use archive::{Index, IndexMut, StructMut, VariadicStruct};
+use error::ResourceStorageError;
 use handle::HandleMut;
 use memory;
 use storage::ResourceHandle;
 use vector::ExternalVector;
 
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use std::fmt;
 use std::io;
 use std::marker;
@@ -194,11 +195,17 @@ impl<Idx: Index, Ts: VariadicStruct> MultiVector<Idx, Ts> {
     /// After this method is called, more data cannot be written into this
     /// multivector. A multivector *must* be closed, otherwise it will
     /// panic on drop (in debug mode).
-    pub fn close(&mut self) -> io::Result<()> {
-        self.add_to_index()?; // sentinel for last item
+    pub fn close(&mut self) -> Result<(), ResourceStorageError> {
+        let res = self.add_to_index(); // sentinel for last item
+        res.map_err(|e| {
+            ResourceStorageError::from_io_error(e, self.data_handle.borrow().name().into())
+        })?;
         self.index.close()?;
-        self.flush()?;
-        self.data_handle.borrow_mut().close()
+        let res = self.flush();
+        res.map_err(|e| {
+            ResourceStorageError::from_io_error(e, self.data_handle.borrow().name().into())
+        })?;
+        self.data_handle.borrow_mut().close().map(|_| ())
     }
 }
 
