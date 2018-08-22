@@ -29,7 +29,11 @@ use std::marker;
 /// # fn main() {
 /// use flatdata::Vector;
 ///
-/// define_struct!(A, AMut, "no_schema", 4,
+/// define_struct!(
+///     A,
+///     AMut,
+///     "no_schema",
+///     4,
 ///     (x, set_x, u32, 0, 16),
 ///     (y, set_y, u32, 16, 16)
 /// );
@@ -209,20 +213,27 @@ impl<T: Struct> fmt::Debug for Vector<T> {
 /// ```
 /// # #[macro_use] extern crate flatdata;
 /// # fn main() {
+/// # use std::rc::Rc;
+/// # use std::cell::RefCell;
 /// use flatdata::{
-/// create_external_vector, ArrayView, ExternalVector,
-/// MemoryResourceStorage, ResourceStorage, };
+///     create_external_vector, ArrayView, ExternalVector, MemoryResourceStorage, ResourceStorage,
+/// };
 ///
-/// define_struct!(A, AMut, "no_schema", 4,
+/// define_struct!(
+///     A,
+///     AMut,
+///     "no_schema",
+///     4,
 ///     (x, set_x, u32, 0, 16),
 ///     (y, set_y, u32, 16, 16)
 /// );
 ///
-/// let mut storage = MemoryResourceStorage::new("/root/extvec".into());
+/// let storage = Rc::new(RefCell::new(MemoryResourceStorage::new(
+///     "/root/extvec".into(),
+/// )));
 /// {
-/// let mut v = create_external_vector::<A>(
-///         &mut storage, "vector", "Some schema content")
-///     .expect("failed to create ExternalVector");
+///     let mut v = create_external_vector::<A>(storage.clone(), "vector", "Some schema content")
+///         .expect("failed to create ExternalVector");
 ///     {
 ///         let mut a = v.grow().expect("grow failed");
 ///         a.set_x(0);
@@ -237,6 +248,7 @@ impl<T: Struct> fmt::Debug for Vector<T> {
 /// }
 ///
 /// let resource = storage
+///     .borrow_mut()
 ///     .read_and_check_schema("vector", "Some schema content")
 ///     .expect("failed to read vector resource");
 ///

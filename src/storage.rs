@@ -142,17 +142,21 @@ pub trait ResourceStorage {
 /// an [`ExternalVector`] using this resource for writing and flushing data to
 /// storage.
 pub fn create_external_vector<T: Struct>(
-    storage: &mut ResourceStorage,
+    storage: Rc<RefCell<ResourceStorage>>,
     resource_name: &str,
     schema: &str,
 ) -> io::Result<ExternalVector<T>> {
-    // write schema
-    let schema_name = format!("{}.schema", resource_name);
-    let stream = storage.create_output_stream(&schema_name)?;
-    stream.borrow_mut().write_all(schema.as_bytes())?;
+    let data_writer = {
+        let mut mut_storage = storage.borrow_mut();
 
-    // create external vector
-    let data_writer = storage.create_output_stream(resource_name)?;
+        // write schema
+        let schema_name = format!("{}.schema", resource_name);
+        let stream = mut_storage.create_output_stream(&schema_name)?;
+        stream.borrow_mut().write_all(schema.as_bytes())?;
+
+        mut_storage.create_output_stream(resource_name)?
+    };
+
     let handle = ResourceHandle::new(data_writer)?;
     Ok(ExternalVector::new(handle))
 }
@@ -163,22 +167,27 @@ pub fn create_external_vector<T: Struct>(
 /// an [`MultiVector`] using this resource for writing and flushing data to
 /// storage.
 pub fn create_multi_vector<Idx: Index, Ts: VariadicStruct>(
-    storage: &mut ResourceStorage,
+    storage: Rc<RefCell<ResourceStorage>>,
     resource_name: &str,
     schema: &str,
 ) -> io::Result<MultiVector<Idx, Ts>> {
     // create index
     let index_name = format!("{}_index", resource_name);
     let index_schema = format!("index({})", schema);
-    let index = create_external_vector(storage, &index_name, &index_schema)?;
+    let index = create_external_vector(storage.clone(), &index_name, &index_schema)?;
 
-    // write schema
-    let schema_name = format!("{}.schema", resource_name);
-    let stream = storage.create_output_stream(&schema_name)?;
-    stream.borrow_mut().write_all(schema.as_bytes())?;
+    let data_writer = {
+        let mut mut_storage = storage.borrow_mut();
+
+        // write schema
+        let schema_name = format!("{}.schema", resource_name);
+        let stream = mut_storage.create_output_stream(&schema_name)?;
+        stream.borrow_mut().write_all(schema.as_bytes())?;
+
+        mut_storage.create_output_stream(resource_name)?
+    };
 
     // create multi vector
-    let data_writer = storage.create_output_stream(resource_name)?;
     let handle = ResourceHandle::new(data_writer)?;
     Ok(MultiVector::new(index, handle))
 }
@@ -337,8 +346,7 @@ fn diff(left: &str, right: &str) -> String {
             diff::Result::Left(l) => format!("-{}", l),
             diff::Result::Both(l, _) => format!(" {}", l),
             diff::Result::Right(r) => format!("+{}", r),
-        })
-        .collect::<Vec<_>>()
+        }).collect::<Vec<_>>()
         .join("\n")
 }
 

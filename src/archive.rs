@@ -652,7 +652,7 @@ macro_rules! define_archive {
                 &mut self,
             ) -> ::std::io::Result<$crate::ExternalVector<$element_type>> {
                 $crate::create_external_vector(
-                    &mut *self.storage.borrow_mut(),
+                    self.storage.clone(),
                     stringify!($vector_resource),
                     $element_schema,
                 )
@@ -664,7 +664,7 @@ macro_rules! define_archive {
                 $crate::MultiVector<$index_type, $variadic_type>
             > {
                 $crate::create_multi_vector(
-                    &mut *self.storage.borrow_mut(),
+                    self.storage.clone(),
                     stringify!($multivector_resource),
                     $variadic_type_schema,
                 )

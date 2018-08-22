@@ -45,6 +45,8 @@ use std::marker;
 /// ```
 /// # #[macro_use] extern crate flatdata;
 /// # fn main() {
+/// # use std::rc::Rc;
+/// # use std::cell::RefCell;
 /// use flatdata::{
 ///     create_multi_vector, ArrayView, MultiArrayView, MultiVector,
 ///     Struct, MemoryResourceStorage, ResourceStorage,
@@ -72,10 +74,10 @@ use std::marker;
 ///
 /// // create multivector and serialize some data
 ///
-/// let mut storage = MemoryResourceStorage::new("/root/multivec".into());
+/// let storage = Rc::new(RefCell::new(MemoryResourceStorage::new("/root/multivec".into())));
 /// {
 ///     let mut mv = create_multi_vector::<Idx, AB>(
-///             &mut storage, "multivector", "some schema")
+///             storage.clone(), "multivector", "some schema")
 ///         .expect("failed to create MultiVector");
 ///     {
 ///         let mut item = mv.grow().expect("grow failed");
@@ -95,10 +97,12 @@ use std::marker;
 /// // open index and data, and read the data
 ///
 /// let index_resource = storage
+///     .borrow_mut()
 ///     .read_and_check_schema("multivector_index", "index(some schema)")
 ///     .expect("read_and_check_schema failed");
 /// let index: ArrayView<Idx> = ArrayView::new(&index_resource);
 /// let resource = storage
+///     .borrow_mut()
 ///     .read_and_check_schema("multivector", "some schema")
 ///     .expect("read_and_check_schema failed");
 /// let mv: MultiArrayView<Idx, AB> = MultiArrayView::new(index, &resource);
@@ -219,12 +223,17 @@ mod tests {
     use storage::create_multi_vector;
     use storage::ResourceStorage;
 
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
     #[test]
     fn test_multi_vector() {
-        let mut storage = MemoryResourceStorage::new("/root/resources".into());
+        let storage = Rc::new(RefCell::new(MemoryResourceStorage::new(
+            "/root/resources".into(),
+        )));
         {
             let mut mv =
-                create_multi_vector::<Idx, Variant>(&mut storage, "multivector", "Some schema")
+                create_multi_vector::<Idx, Variant>(storage.clone(), "multivector", "Some schema")
                     .expect("failed to create MultiVector");
             {
                 let mut item = mv.grow().expect("grow failed");
@@ -247,10 +256,12 @@ mod tests {
         }
 
         let index_resource = storage
+            .borrow_mut()
             .read_and_check_schema("multivector_index", "index(Some schema)")
             .expect("read_and_check_schema failed");
         let index: ArrayView<Idx> = ArrayView::new(&index_resource);
         let resource = storage
+            .borrow_mut()
             .read_and_check_schema("multivector", "Some schema")
             .expect("read_and_check_schema failed");
         let mv: MultiArrayView<Idx, Variant> = MultiArrayView::new(index, &resource);
