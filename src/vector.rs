@@ -206,8 +206,9 @@ impl<T: Struct> fmt::Debug for Vector<T> {
 /// [`grow`] can be accessed and written.
 ///
 /// An external vector *must* be closed, after the last element was written to
-/// it. After closing, it can not be used anymore. Not closing the vector will
-/// result in panic on drop (in debug mode).
+/// it. After closing, it returns a read-only view to the written data and can
+/// not be used anymore for adding more data. Not closing the vector will result
+/// in panic on drop (in debug mode).
 ///
 /// # Examples
 ///
@@ -268,6 +269,7 @@ pub struct ExternalVector<T> {
     data: Vec<u8>,
     len: usize,
     resource_handle: ResourceHandle,
+    mem_descr: MemoryDescriptor, // valid after `close`
     _phantom: marker::PhantomData<T>,
 }
 
@@ -278,6 +280,7 @@ impl<T: Struct> ExternalVector<T> {
             data: vec![0; memory::PADDING_SIZE],
             len: 0,
             resource_handle,
+            mem_descr: MemoryDescriptor::default(),
             _phantom: marker::PhantomData,
         }
     }
@@ -333,12 +336,13 @@ impl<T: Struct> ExternalVector<T> {
     /// After this method is called, more data cannot be written into this
     /// vector. An external vector *must* be closed, otherwise it will
     /// panic on drop (in debug mode).
-    pub fn close(&mut self) -> Result<(), ResourceStorageError> {
-        let res = self.flush();
-        res.map_err(|e| {
+    pub fn close(&mut self) -> Result<ArrayView<T>, ResourceStorageError> {
+        self.flush().map_err(|e| {
             ResourceStorageError::from_io_error(e, self.resource_handle.borrow().name().into())
         })?;
-        self.resource_handle.borrow_mut().close().map(|_| ())
+        let mem_descr = self.resource_handle.borrow_mut().close()?;
+        self.mem_descr = mem_descr;
+        Ok(ArrayView::new(&self.mem_descr))
     }
 }
 
@@ -359,7 +363,12 @@ mod tests {
     // Note: ExternalVector is tested in the corresponding example.
 
     use super::*;
+    use memstorage::MemoryResourceStorage;
+    use storage::create_external_vector;
     use test_structs::*;
+
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
     #[test]
     fn test_vector_new() {
@@ -439,5 +448,32 @@ mod tests {
         }
         v.grow();
         assert_eq!(v.len(), 3);
+    }
+
+    #[test]
+    fn test_external_vector_close() {
+        let storage = Rc::new(RefCell::new(MemoryResourceStorage::new(
+            "/root/extvec".into(),
+        )));
+
+        let mut v = create_external_vector::<A>(storage.clone(), "vector", "Some schema content")
+            .expect("failed to create ExternalVector");
+        {
+            let mut a = v.grow().expect("grow failed");
+            a.set_x(0);
+            a.set_y(1);
+        }
+        {
+            let mut a = v.grow().expect("grow failed");
+            a.set_x(2);
+            a.set_y(3);
+        }
+
+        let view = v.close().expect("close failed");
+        assert_eq!(view.len(), 2);
+        assert_eq!(view.at(0).x(), 0);
+        assert_eq!(view.at(0).y(), 1);
+        assert_eq!(view.at(1).x(), 2);
+        assert_eq!(view.at(1).y(), 3);
     }
 }

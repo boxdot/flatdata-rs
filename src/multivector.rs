@@ -2,7 +2,8 @@ use archive::{Index, IndexMut, StructMut, VariadicStruct};
 use error::ResourceStorageError;
 use handle::HandleMut;
 use memory;
-use storage::ResourceHandle;
+use multiarrayview::MultiArrayView;
+use storage::{MemoryDescriptor, ResourceHandle};
 use vector::ExternalVector;
 
 use std::borrow::{Borrow, BorrowMut};
@@ -30,7 +31,8 @@ use std::marker;
 /// [`MultiArrayView`].
 ///
 /// A multivector *must* be closed, after the last element was written to it.
-/// After closing, it can not be used anymore. Not closing the multivector will
+/// After closing, it returns a read-only view to the written data and can not
+/// be used any more for adding more data. Not closing the multivector will
 /// result in panic on drop (in debug mode).
 ///
 /// Internally data is stored like this:
@@ -137,6 +139,7 @@ pub struct MultiVector<Idx, Ts> {
     data: Vec<u8>,
     data_handle: ResourceHandle,
     size_flushed: usize,
+    data_mem_descr: MemoryDescriptor, // valid after `close`
     _phantom: marker::PhantomData<Ts>,
 }
 
@@ -148,6 +151,7 @@ impl<Idx: Index, Ts: VariadicStruct> MultiVector<Idx, Ts> {
             data: vec![0; memory::PADDING_SIZE],
             data_handle,
             size_flushed: 0,
+            data_mem_descr: MemoryDescriptor::default(),
             _phantom: marker::PhantomData,
         }
     }
@@ -189,23 +193,24 @@ impl<Idx: Index, Ts: VariadicStruct> MultiVector<Idx, Ts> {
         Ok(())
     }
 
-    /// Flushes the remaining not yet flushed elements in this multivector and
-    /// finalizes the data inside the storage.
+    /// Flushes the remaining not yet flushed elements in this multivector,
+    /// finalizes the data inside the storage and returns a read-only view to
+    /// the data.
     ///
-    /// After this method is called, more data cannot be written into this
+    /// After this method is called, no more data can be written into this
     /// multivector. A multivector *must* be closed, otherwise it will
     /// panic on drop (in debug mode).
-    pub fn close(&mut self) -> Result<(), ResourceStorageError> {
-        let res = self.add_to_index(); // sentinel for last item
-        res.map_err(|e| {
-            ResourceStorageError::from_io_error(e, self.data_handle.borrow().name().into())
-        })?;
-        self.index.close()?;
-        let res = self.flush();
-        res.map_err(|e| {
-            ResourceStorageError::from_io_error(e, self.data_handle.borrow().name().into())
-        })?;
-        self.data_handle.borrow_mut().close().map(|_| ())
+    pub fn close(&mut self) -> Result<MultiArrayView<Idx, Ts>, ResourceStorageError> {
+        let resource_name = String::from(self.data_handle.borrow().name());
+        let into_storage_error = |e| ResourceStorageError::from_io_error(e, resource_name.clone());
+
+        self.add_to_index().map_err(into_storage_error)?; // sentinel for last item
+        self.flush().map_err(into_storage_error)?;
+
+        let index_view = self.index.close()?;
+        self.data_mem_descr = self.data_handle.borrow_mut().close()?;
+
+        Ok(MultiArrayView::new(index_view, &self.data_mem_descr))
     }
 }
 
@@ -259,7 +264,24 @@ mod tests {
                     assert_eq!(b.y(), 4);
                 }
             }
-            mv.close().expect("close failed");
+            let mv = mv.close().expect("close failed");
+
+            assert_eq!(mv.len(), 1);
+            let mut item = mv.at(0);
+            let a = item.next().unwrap();
+            match *a {
+                Variant::A(ref a) => {
+                    assert_eq!(a.x(), 1);
+                    assert_eq!(a.y(), 2);
+                }
+            }
+            let b = item.next().unwrap();
+            match *b {
+                Variant::A(ref a) => {
+                    assert_eq!(a.x(), 3);
+                    assert_eq!(a.y(), 4);
+                }
+            }
         }
 
         let index_resource = storage
