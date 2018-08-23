@@ -21,7 +21,7 @@ macro_rules! read_bytes {
     (bool, $data:expr, $offset:expr, $num_bits:expr) => {{
         read_bytes!(u8, $data, $offset, $num_bits) != 0
     }};
-    ($T:tt, $data:expr, $offset:expr, $num_bits:expr) => {{
+    ($T:ty, $data:expr, $offset:expr, $num_bits:expr) => {{
         let byte_offset: usize = $offset / 8;
         let bit_offset: usize = $offset % 8;
 
@@ -46,10 +46,10 @@ macro_rules! read_bytes {
             extend_sign!($T, result, $num_bits)
         }
     }};
-    ($T:tt, $data:expr, $offset:expr) => {
+    ($T:ty, $data:expr, $offset:expr) => {
         read_bytes!($T, $data, $offset, ::std::mem::size_of::<$T>() * 8)
     };
-    ($T:tt, $data:expr) => {
+    ($T:ty, $data:expr) => {
         read_bytes!($T, $data, 0, ::std::mem::size_of::<$T>() * 8)
     };
 }

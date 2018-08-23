@@ -11,4 +11,5 @@ readme = "README.md"
 
 [dependencies]
 diff = "0.1"
+extsort = { git = "https://github.com/boxdot/extsort-rs", rev = "master" }
 memmap = "0.6"

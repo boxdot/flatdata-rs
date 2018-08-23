@@ -47,6 +47,7 @@
 // #![allow(intra_doc_link_resolution_failure)]
 
 extern crate diff;
+extern crate extsort;
 extern crate memmap;
 
 /// Number of elements in `ArrayView`, `MultiArrayView`, and `Vector` to show

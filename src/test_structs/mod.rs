@@ -6,6 +6,7 @@ use memory;
 
 use std::cmp;
 use std::convert;
+use std::fmt;
 use std::mem;
 use std::slice;
 
@@ -79,7 +80,7 @@ impl IndexMut for IdxMut {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct A {
     data: *const u8,
 }
@@ -91,6 +92,12 @@ impl A {
 
     pub fn y(&self) -> u32 {
         read_bytes!(u32, self.data, 16, 16)
+    }
+}
+
+impl fmt::Debug for A {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "A {{ x: {}, y: {} }}", self.x(), self.y())
     }
 }
 

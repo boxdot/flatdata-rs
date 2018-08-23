@@ -4,9 +4,14 @@ use handle::{Handle, HandleMut};
 use memory;
 use storage::{MemoryDescriptor, ResourceHandle};
 
+use extsort;
+
+use std::cmp;
 use std::fmt;
 use std::io;
 use std::marker;
+use std::mem;
+use std::ptr;
 
 /// A container holding a contiguous sequence of flatdata structs of the same
 /// type `T` in memory, and providing read and write access to it.
@@ -351,9 +356,18 @@ impl<T: Struct> ExternalVector<T> {
         self.flush()?;
         self.resource_handle.close()?;
 
-        // let data = self.resource_handle.read_mut()?;
-        // let data: &mut [u8] = data.borrow_mut().as_mut();
-        // TODO: sort here!
+        {
+            let buffer = self.resource_handle.read_mut()?;
+            let mut data = buffer.borrow_mut();
+            let data: &mut [u8] = data.as_mut();
+
+            // TODO: This calculation should be done in storage?!
+            let offset = mem::size_of::<memory::SizeType>();
+            let size_in_bytes = read_bytes!(memory::SizeType, data.as_ptr()) as usize;
+            let data = &mut data[offset..offset + size_in_bytes];
+
+            extsort::extsort::<ExtsortRecord<T>>(data)?;
+        }
 
         self.mem_descr = self.resource_handle.read()?;
         Ok(ArrayView::new(&self.mem_descr))
@@ -372,10 +386,34 @@ impl<T: Struct> fmt::Debug for ExternalVector<T> {
     }
 }
 
+#[derive(PartialEq, PartialOrd, Debug)]
+struct ExtsortRecord<T: Struct>(T);
+
+impl<T: Struct> Eq for ExtsortRecord<T> {}
+
+impl<T: Struct> Ord for ExtsortRecord<T> {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        self.partial_cmp(other)
+            .expect("unsupported flatdata struct for total ordering")
+    }
+}
+
+impl<T: Struct> extsort::Record for ExtsortRecord<T> {
+    const SIZE_IN_BYTES: usize = T::SIZE_IN_BYTES;
+
+    fn from_bytes(data: &[u8]) -> Self {
+        ExtsortRecord(T::from(&data[0] as *const _))
+    }
+
+    fn to_bytes(&self, data: &mut [u8]) {
+        unsafe {
+            ptr::copy_nonoverlapping(self.0.as_ptr(), data.as_mut_ptr(), Self::SIZE_IN_BYTES);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    // Note: ExternalVector is tested in the corresponding example.
-
     use super::*;
     use memstorage::MemoryResourceStorage;
     use storage::create_external_vector;
@@ -489,5 +527,38 @@ mod tests {
         assert_eq!(view.at(0).y(), 1);
         assert_eq!(view.at(1).x(), 2);
         assert_eq!(view.at(1).y(), 3);
+    }
+
+    #[test]
+    fn test_external_vector_close_and_sort() {
+        let storage = Rc::new(RefCell::new(MemoryResourceStorage::new(
+            "/root/extvec".into(),
+        )));
+
+        let mut v = create_external_vector::<A>(storage.clone(), "vector", "Some schema content")
+            .expect("failed to create ExternalVector");
+        {
+            let mut a = v.grow().expect("grow failed");
+            a.set_x(3);
+            a.set_y(1);
+        }
+        {
+            let mut a = v.grow().expect("grow failed");
+            a.set_x(2);
+            a.set_y(3);
+        }
+
+        let view = v.close_and_sort().expect("close failed");
+        assert_eq!(view.len(), 2);
+
+        println!("{}", view.at(0).x());
+        println!("{}", view.at(0).y());
+        println!("{}", view.at(1).x());
+        println!("{}", view.at(1).y());
+
+        assert_eq!(view.at(0).x(), 2);
+        assert_eq!(view.at(0).y(), 3);
+        assert_eq!(view.at(1).x(), 3);
+        assert_eq!(view.at(1).y(), 1);
     }
 }
