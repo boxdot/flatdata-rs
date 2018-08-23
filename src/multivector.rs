@@ -1,12 +1,10 @@
 use archive::{Index, IndexMut, StructMut, VariadicStruct};
-use error::ResourceStorageError;
 use handle::HandleMut;
 use memory;
 use multiarrayview::MultiArrayView;
 use storage::{MemoryDescriptor, ResourceHandle};
 use vector::ExternalVector;
 
-use std::borrow::{Borrow, BorrowMut};
 use std::fmt;
 use std::io;
 use std::marker;
@@ -179,7 +177,6 @@ impl<Idx: Index, Ts: VariadicStruct> MultiVector<Idx, Ts> {
     /// Only data is flushed.
     fn flush(&mut self) -> io::Result<()> {
         self.data_handle
-            .borrow_mut()
             .write(&self.data[..self.data.len() - memory::PADDING_SIZE])?;
         self.size_flushed += self.data.len() - memory::PADDING_SIZE;
         self.data.clear();
@@ -200,15 +197,13 @@ impl<Idx: Index, Ts: VariadicStruct> MultiVector<Idx, Ts> {
     /// After this method is called, no more data can be written into this
     /// multivector. A multivector *must* be closed, otherwise it will
     /// panic on drop (in debug mode).
-    pub fn close(&mut self) -> Result<MultiArrayView<Idx, Ts>, ResourceStorageError> {
-        let resource_name = String::from(self.data_handle.borrow().name());
-        let into_storage_error = |e| ResourceStorageError::from_io_error(e, resource_name.clone());
-
-        self.add_to_index().map_err(into_storage_error)?; // sentinel for last item
-        self.flush().map_err(into_storage_error)?;
+    pub fn close(&mut self) -> io::Result<MultiArrayView<Idx, Ts>> {
+        self.add_to_index()?; // sentinel for last item
+        self.flush()?;
 
         let index_view = self.index.close()?;
-        self.data_mem_descr = self.data_handle.borrow_mut().close()?;
+        self.data_handle.close()?;
+        self.data_mem_descr = self.data_handle.read()?;
 
         Ok(MultiArrayView::new(index_view, &self.data_mem_descr))
     }

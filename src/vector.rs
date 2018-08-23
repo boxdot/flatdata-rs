@@ -1,11 +1,9 @@
 use archive::Struct;
 use arrayview::ArrayView;
-use error::ResourceStorageError;
 use handle::{Handle, HandleMut};
 use memory;
 use storage::{MemoryDescriptor, ResourceHandle};
 
-use std::borrow::{Borrow, BorrowMut};
 use std::fmt;
 use std::io;
 use std::marker;
@@ -317,7 +315,6 @@ impl<T: Struct> ExternalVector<T> {
     /// Flushes the not yet flushed content in this vector to storage.
     fn flush(&mut self) -> io::Result<()> {
         self.resource_handle
-            .borrow_mut()
             .write(&self.data[..self.data.len() - memory::PADDING_SIZE])?;
         self.data.resize(0, 0);
         self.data.resize(memory::PADDING_SIZE, 0);
@@ -327,21 +324,38 @@ impl<T: Struct> ExternalVector<T> {
     /// Returns `true` if this vector was not closed yet and more elements can
     /// be added to it.
     pub fn is_open(&self) -> bool {
-        self.resource_handle.borrow().is_open()
+        self.resource_handle.is_open()
     }
 
     /// Flushes the remaining not yet flushed elements in this vector and
     /// finalizes the data inside the storage.
     ///
-    /// After this method is called, more data cannot be written into this
+    /// After this method is called, no more data can be written into this
     /// vector. An external vector *must* be closed, otherwise it will
     /// panic on drop (in debug mode).
-    pub fn close(&mut self) -> Result<ArrayView<T>, ResourceStorageError> {
-        self.flush().map_err(|e| {
-            ResourceStorageError::from_io_error(e, self.resource_handle.borrow().name().into())
-        })?;
-        let mem_descr = self.resource_handle.borrow_mut().close()?;
-        self.mem_descr = mem_descr;
+    pub fn close(&mut self) -> io::Result<ArrayView<T>> {
+        self.flush()?;
+        self.resource_handle.close()?;
+        self.mem_descr = self.resource_handle.read()?;
+        Ok(ArrayView::new(&self.mem_descr))
+    }
+
+    /// Flushes the remaining not yet flushed elements in this vector and
+    /// finalizes the data inside the storage. Addionaly, elements are sorted
+    /// on disk using an external sorting algorithm.
+    ///
+    /// After this method is called, no more data can be written into this
+    /// vector. An external vector *must* be closed, otherwise it will
+    /// panic on drop (in debug mode).
+    pub fn close_and_sort(&mut self) -> io::Result<ArrayView<T>> {
+        self.flush()?;
+        self.resource_handle.close()?;
+
+        // let data = self.resource_handle.read_mut()?;
+        // let data: &mut [u8] = data.borrow_mut().as_mut();
+        // TODO: sort here!
+
+        self.mem_descr = self.resource_handle.read()?;
         Ok(ArrayView::new(&self.mem_descr))
     }
 }

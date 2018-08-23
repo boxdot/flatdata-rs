@@ -70,7 +70,20 @@ pub trait ResourceStorage {
     /// corresponding schema.
     ///
     /// [`read`]: #method.read
-    fn read_resource(&mut self, resource_name: &str) -> Result<MemoryDescriptor, io::Error>;
+    fn read_resource(&mut self, resource_name: &str) -> io::Result<MemoryDescriptor>;
+
+    /// Reads a resource in storage and returns an owned pointer to its mutable
+    /// data.
+    ///
+    /// This is a low level facility for opening a resource when its data needs
+    /// to be modified before it is completely finalized. A prominent example
+    /// is sorting of the data on disk after it was written. This is useful,
+    /// when the data does not completely fit into memory. This method is *not*
+    /// indented for modifying an archive, since archives are considered as
+    /// constant.
+    ///
+    /// If the resource was already opened for reading, this method will fail.
+    fn read_resource_mut(&self, resource_name: &str) -> io::Result<Rc<RefCell<AsMut<[u8]>>>>;
 
     /// Creates a resource with given name and returns an output stream for
     /// writing to it.
@@ -317,40 +330,41 @@ impl ResourceHandle {
         res
     }
 
-    pub fn name(&self) -> &str {
-        &self.resource_name
-    }
-
     /// Close the underlying stream and write the header containing the size in
     /// bytes of written data.
-    pub fn close(&mut self) -> Result<MemoryDescriptor, ResourceStorageError> {
+    pub fn close(&mut self) -> io::Result<()> {
         {
-            let resource_name = self.resource_name.clone();
-            let into_storage_error =
-                |e| ResourceStorageError::from_io_error(e, resource_name.clone());
-
-            let stream = self.stream.as_ref().ok_or_else(|| {
-                into_storage_error(io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    "stream closed",
-                ))
-            })?;
+            let stream = self
+                .stream
+                .as_ref()
+                .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "stream closed"))?;
 
             let mut mut_stream = stream.borrow_mut();
-            write_padding(mut_stream.deref_mut()).map_err(into_storage_error)?;
+            write_padding(mut_stream.deref_mut())?;
 
             // Update size in the beginning of the file
-            mut_stream
-                .seek(io::SeekFrom::Start(0u64))
-                .map_err(into_storage_error)?;
-            write_size(self.size_in_bytes as u64, mut_stream.deref_mut())
-                .map_err(into_storage_error)?;
+            mut_stream.seek(io::SeekFrom::Start(0u64))?;
+            write_size(self.size_in_bytes as u64, mut_stream.deref_mut())?;
         }
         self.stream = None;
-        // return unterlying memory descriptor to the written data
+        Ok(())
+    }
+
+    pub fn read(&self) -> io::Result<MemoryDescriptor> {
         self.storage
             .borrow_mut()
             .read(&self.resource_name, &self.resource_schema)
+            .map_err(|_| {
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("failed to read resource: {}", self.resource_name),
+                )
+            })
+    }
+
+    pub fn read_mut(&self) -> io::Result<Rc<RefCell<AsMut<[u8]>>>> {
+        let storage = self.storage.borrow_mut();
+        storage.read_resource_mut(&self.resource_name)
     }
 }
 
