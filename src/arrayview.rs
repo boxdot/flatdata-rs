@@ -24,7 +24,11 @@ use std::slice;
 /// # fn main() {
 /// use flatdata::{ArrayView, Vector};
 ///
-/// define_struct!(A, AMut, "no_schema", 4,
+/// define_struct!(
+///     A,
+///     AMut,
+///     "no_schema",
+///     4,
 ///     (x, set_x, u32, 0, 16),
 ///     (y, set_y, u32, 16, 16)
 /// );
@@ -149,7 +153,8 @@ impl<'a, T: Struct> iter::ExactSizeIterator for ArrayViewIter<'a, T> {
 
 impl<'a, T: Struct> fmt::Debug for ArrayViewIter<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let preview = self.view
+        let preview = self
+            .view
             .iter()
             .skip(self.next_pos)
             .take(super::DEBUG_PREVIEW_LEN);
@@ -163,5 +168,38 @@ impl<'a, T: Struct> fmt::Debug for ArrayViewIter<'a, T> {
                 "..."
             }
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use archive::Struct;
+    use memory;
+    use storage::MemoryDescriptor;
+
+    #[test]
+    #[allow(dead_code)]
+    fn test() {
+        define_struct!(
+            A,
+            AMut,
+            "no_schema",
+            4,
+            (x, set_x, u32, 0, 16),
+            (y, set_y, u32, 16, 16)
+        );
+
+        let mut buffer = vec![255_u8; 4];
+        buffer.extend(vec![0_u8; A::SIZE_IN_BYTES * 10 + memory::PADDING_SIZE]);
+        let data = MemoryDescriptor::new(buffer.as_ptr(), buffer.len() - memory::PADDING_SIZE);
+        let view: super::ArrayView<A> = super::ArrayView::new(&data);
+        assert_eq!(11, view.len());
+        let first = view.at(0);
+        assert_eq!(65535, first.x());
+        assert_eq!(65535, first.y());
+        for x in view.iter().skip(1) {
+            assert_eq!(0, x.x());
+            assert_eq!(0, x.y());
+        }
     }
 }

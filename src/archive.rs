@@ -39,6 +39,8 @@ use std::convert::From;
 use std::fmt::Debug;
 use std::rc::Rc;
 
+pub use std::marker;
+
 /// A type in flatdata used for reading data.
 ///
 /// Each struct in generated code implements this trait.
@@ -62,6 +64,32 @@ pub trait StructMut: Debug + From<*mut u8> {
     type Const: Struct;
     /// Raw pointer to the mutable data.
     fn as_mut_ptr(&mut self) -> *mut u8;
+}
+
+/// A factory trait used to bind lifetime to Struct implementations
+///
+/// Vector/ArrayView-like classes cannot be directly implemented over the
+/// structs since that binds lifetime too early. Instead this generic factory
+/// and Higher-Rank-Trait-Bounds are used to emulate higher-kinded-generics
+pub trait StructFactory<'a> {
+    /// Item this factory will produce
+    type Item: Struct;
+
+    /// create a new item from a slice
+    fn create(&[u8]) -> Self::Item;
+}
+
+/// A factory trait used to bind lifetime to StructMut implementations
+///
+/// Vector/ArrayView-like classes cannot be directly implemented over the
+/// structs since that binds lifetime too early. Instead this generic factory
+/// and Higher-Rank-Trait-Bounds are used to emulate higher-kinded-generics
+pub trait StructMutFactory<'a> {
+    /// Item this factory will produce
+    type Item: StructMut;
+
+    /// create a new item from a slice
+    fn create(&[u8]) -> Self::Item;
 }
 
 /// A type in archive used as index of a `MultiArrayView`.
@@ -165,6 +193,7 @@ pub trait ArchiveBuilder: Clone {
 /// Macro used by generator to define a flatdata struct.
 #[macro_export]
 macro_rules! define_struct {
+
     // Simpler case where type and primitive_type coincide.
     ($name:ident, $name_mut:ident, $schema:expr, $size_in_bytes:expr
         $(,($field:ident, $field_setter:ident, $type:tt, $offset:expr, $bit_size:expr))*) => {
@@ -181,18 +210,19 @@ macro_rules! define_struct {
         // introduced (i.e. when we can express that a container is parametrized over a meta-type
         // with a lifetime bound later), we can refactor this and get rid of Handle and HandleMut.
         #[derive(Clone)]
-        pub struct $name {
+        pub struct $name<'a> {
             data: *const u8,
+            _phantom: $crate::marker::PhantomData<&'a u8>,
         }
 
-        impl $name {
+        impl<'a> $name<'a> {
             $(pub fn $field(&self) -> $type {
                 let value = read_bytes!($primitive_type, self.data, $offset, $bit_size);
                 unsafe { ::std::mem::transmute::<$primitive_type, $type>(value) }
             })*
         }
 
-        impl ::std::fmt::Debug for $name {
+        impl<'a> ::std::fmt::Debug for $name<'a> {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 write!(f,
                     concat!(stringify!($name), " {{ ",
@@ -201,34 +231,35 @@ macro_rules! define_struct {
             }
         }
 
-        impl ::std::cmp::PartialEq for $name {
+        impl<'a> ::std::cmp::PartialEq for $name<'a> {
             fn eq(&self, other: &$name) -> bool {
                 $(self.$field() == other.$field()) && *
             }
         }
 
-        impl ::std::convert::From<*const u8> for $name {
+        impl<'a> ::std::convert::From<*const u8> for $name<'a> {
             fn from(data: *const u8) -> Self {
-                Self { data }
+                Self { data, _phantom : $crate::marker::PhantomData }
             }
         }
 
-        impl $crate::Struct for $name {
+        impl<'a> $crate::Struct for $name<'a> {
             const SCHEMA: &'static str = $schema;
             const SIZE_IN_BYTES: usize = $size_in_bytes;
 
-            type Mut = $name_mut;
+            type Mut = $name_mut<'a>;
 
             fn as_ptr(&self) -> *const u8 {
                 self.data
             }
         }
 
-        pub struct $name_mut {
+        pub struct $name_mut<'a> {
             data: *mut u8,
+            _phantom: $crate::marker::PhantomData<&'a u8>,
         }
 
-        impl $name_mut {
+        impl<'a> $name_mut<'a> {
             $(pub fn $field(&self) -> $type {
                 let value = read_bytes!($primitive_type, self.data, $offset, $bit_size);
                 unsafe { ::std::mem::transmute::<$primitive_type, $type>(value) }
@@ -246,28 +277,28 @@ macro_rules! define_struct {
             }
         }
 
-        impl ::std::fmt::Debug for $name_mut {
+        impl<'a> ::std::fmt::Debug for $name_mut<'a> {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 self.as_ref().fmt(f)
             }
         }
 
-        impl ::std::convert::From<*mut u8> for $name_mut {
+        impl<'a> ::std::convert::From<*mut u8> for $name_mut<'a> {
             fn from(data: *mut u8) -> Self {
-                Self { data }
+                Self { data, _phantom : $crate::marker::PhantomData }
             }
         }
 
-        impl $crate::StructMut for $name_mut {
-            type Const = $name;
+        impl<'a> $crate::StructMut for $name_mut<'a> {
+            type Const = $name<'a>;
 
             fn as_mut_ptr(&mut self) -> *mut u8 {
                 self.data
             }
         }
 
-        impl ::std::convert::AsRef<$name> for $name_mut {
-            fn as_ref(&self) -> &$name {
+        impl<'a> ::std::convert::AsRef<$name<'a>> for $name_mut<'a> {
+            fn as_ref(&self) -> &$name<'a> {
                 unsafe { &*(self as *const $name_mut as *const $name) }
             }
         }
@@ -287,14 +318,14 @@ macro_rules! define_index {
             (value, set_value, u64, 0, $size_in_bits)
         );
 
-        impl $crate::Index for $name {
-            type IndexMut = $name_mut;
+        impl<'a> $crate::Index for $name<'a> {
+            type IndexMut = $name_mut<'a>;
             fn value(&self) -> usize {
                 self.value() as usize
             }
         }
 
-        impl $crate::IndexMut for $name_mut {
+        impl<'a> $crate::IndexMut for $name_mut<'a> {
             fn set_value(&mut self, value: usize) {
                 self.set_value(value as u64);
             }
@@ -310,11 +341,11 @@ macro_rules! define_variadic_struct {
         $($type_index:expr => ($type:tt, $add_type_fn:ident)),+) =>
     {
         #[derive(Clone, PartialEq)]
-        pub enum $name {
-            $($type($type),)*
+        pub enum $name<'a> {
+            $($type($type<'a>),)*
         }
 
-        impl ::std::convert::From<($crate::TypeIndex, *const u8)> for $name {
+        impl<'a> ::std::convert::From<($crate::TypeIndex, *const u8)> for $name<'a> {
             fn from((type_index, data): ($crate::TypeIndex, *const u8)) -> Self {
                 match type_index {
                     $($type_index => $name::$type($type::from(data))),+,
@@ -324,7 +355,7 @@ macro_rules! define_variadic_struct {
             }
         }
 
-        impl ::std::fmt::Debug for $name {
+        impl<'a> ::std::fmt::Debug for $name<'a> {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 match *self {
                     $($name::$type(ref inner) => write!(f, "{:?}", inner)),+
@@ -332,7 +363,7 @@ macro_rules! define_variadic_struct {
             }
         }
 
-        impl $crate::VariadicStruct for $name {
+        impl<'a> $crate::VariadicStruct for $name<'a> {
             type ItemBuilder = $item_builder_name;
 
             fn size_in_bytes(&self) -> usize {
