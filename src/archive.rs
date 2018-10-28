@@ -378,15 +378,15 @@ macro_rules! define_variadic_struct {
         }
 
         impl $item_builder_name {
-            $(pub fn $add_type_fn(&mut self) -> $crate::HandleMut<<$type as $crate::Struct>::Mut> {
+            $(pub fn $add_type_fn(&mut self) -> <$type as $crate::Struct>::Mut {
                 let data = unsafe { &mut *self.data };
                 let old_len = data.len();
                 let increment = 1 + $type::SIZE_IN_BYTES;
                 data.resize(old_len + increment, 0);
                 data[old_len - $crate::PADDING_SIZE] = $type_index;
-                $crate::HandleMut::new(<$type as $crate::Struct>::Mut::from(
+                <$type as $crate::Struct>::Mut::from(
                     &mut data[1 + old_len - $crate::PADDING_SIZE] as *mut _
-                ))
+                )
             })*
         }
 
@@ -490,14 +490,14 @@ macro_rules! define_archive {
             }
 
             $(pub fn $struct_resource(&self) -> opt!(
-                $crate::Handle<$struct_type>, $is_optional_struct)
+                $struct_type, $is_optional_struct)
             {
                 static_if!($is_optional_struct, {
                     self.$struct_resource.as_ref().map(|mem_desc| {
-                        $crate::Handle::new($struct_type::from(mem_desc.data()))
+                        $struct_type::from(mem_desc.data())
                     })
                 }, {
-                    $crate::Handle::new($struct_type::from(self.$struct_resource.data()))
+                    $struct_type::from(self.$struct_resource.data())
                 })
             })*
 

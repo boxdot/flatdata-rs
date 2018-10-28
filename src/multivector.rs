@@ -1,5 +1,4 @@
 use archive::{Index, IndexMut, StructMut, VariadicStruct};
-use handle::HandleMut;
 use memory;
 use storage::ResourceHandle;
 use vector::ExternalVector;
@@ -106,7 +105,7 @@ use std::marker;
 /// assert_eq!(mv.len(), 1);
 /// let mut item = mv.at(0);
 /// let a = item.next().unwrap();
-/// match *a {
+/// match a {
 ///     AB::A(ref a) => {
 ///         assert_eq!(a.x(), 1);
 ///         assert_eq!(a.y(), 2);
@@ -114,7 +113,7 @@ use std::marker;
 ///     _ => assert!(false),
 /// }
 /// let b = item.next().unwrap();
-/// match *b {
+/// match b {
 ///     AB::B(ref b) => {
 ///         assert_eq!(b.id(), 42);
 ///     },
@@ -157,12 +156,12 @@ impl<Idx: Index, Ts: VariadicStruct> MultiVector<Idx, Ts> {
     /// may fail due to different IO reasons.
     ///
     /// [`flush`]: #method.flush
-    pub fn grow(&mut self) -> io::Result<HandleMut<Ts::ItemBuilder>> {
+    pub fn grow(&mut self) -> io::Result<Ts::ItemBuilder> {
         if self.data.len() > 1024 * 1024 * 32 {
             self.flush()?;
         }
         self.add_to_index()?;
-        Ok(HandleMut::new(Ts::ItemBuilder::from(&mut self.data)))
+        Ok(Ts::ItemBuilder::from(&mut self.data))
     }
 
     /// Flushes the not yet flushed content in this multivector to storage.
@@ -258,14 +257,14 @@ mod tests {
         assert_eq!(mv.len(), 1);
         let mut item = mv.at(0);
         let a = item.next().unwrap();
-        match *a {
+        match a {
             Variant::A(ref a) => {
                 assert_eq!(a.x(), 1);
                 assert_eq!(a.y(), 2);
             }
         }
         let b = item.next().unwrap();
-        match *b {
+        match b {
             Variant::A(ref a) => {
                 assert_eq!(a.x(), 3);
                 assert_eq!(a.y(), 4);

@@ -1,6 +1,6 @@
 use archive::Struct;
 use arrayview::ArrayView;
-use handle::{Handle, HandleMut};
+
 use memory;
 use storage::ResourceHandle;
 
@@ -132,25 +132,25 @@ where
     /// Appends an element to the end of this vector and returns a mutable
     /// handle to it.
     #[inline]
-    pub fn grow(&mut self) -> HandleMut<T::Mut> {
+    pub fn grow(&mut self) -> T::Mut {
         let old_size = self.data.len();
         self.data.resize(old_size + T::SIZE_IN_BYTES, 0);
         let last_index = self.len() - 1;
-        HandleMut::new(T::Mut::from(&mut self.data[last_index * T::SIZE_IN_BYTES]))
+        T::Mut::from(&mut self.data[last_index * T::SIZE_IN_BYTES])
     }
 
     /// Return an accessor handle to the element at position `index` in the
     /// vector.
     #[inline]
-    pub fn at(&self, index: usize) -> Handle<T> {
-        Handle::new(T::from(&self.data[index * T::SIZE_IN_BYTES]))
+    pub fn at(&self, index: usize) -> T {
+        T::from(&self.data[index * T::SIZE_IN_BYTES])
     }
 
     /// Return a mutable handle to the element at position `index` in the
     /// vector.
     #[inline]
-    pub fn at_mut(&mut self, index: usize) -> HandleMut<T::Mut> {
-        HandleMut::new(T::Mut::from(&mut self.data[index * T::SIZE_IN_BYTES]))
+    pub fn at_mut(&mut self, index: usize) -> T::Mut {
+        T::Mut::from(&mut self.data[index * T::SIZE_IN_BYTES])
     }
 
     /// Calculates size in bytes (with padding) needed to store `len` many
@@ -293,16 +293,16 @@ impl<T: Struct> ExternalVector<T> {
     /// may fail due to different IO reasons.
     ///
     /// [`flush`]: #method.flush
-    pub fn grow(&mut self) -> io::Result<HandleMut<T::Mut>> {
+    pub fn grow(&mut self) -> io::Result<T::Mut> {
         if self.data.len() > 1024 * 1024 * 32 {
             self.flush()?;
         }
         let old_size = self.data.len();
         self.data.resize(old_size + T::SIZE_IN_BYTES, 0);
         self.len += 1;
-        Ok(HandleMut::new(T::Mut::from(
+        Ok(T::Mut::from(
             &mut self.data[old_size - memory::PADDING_SIZE],
-        )))
+        ))
     }
 
     /// Flushes the not yet flushed content in this vector to storage.

@@ -1,5 +1,4 @@
 use archive::Struct;
-use handle::Handle;
 
 use std::fmt;
 use std::iter;
@@ -80,10 +79,10 @@ impl<'a, T: Struct> ArrayView<'a, T> {
     /// # Panics
     ///
     /// Panics if index is greater than or equal to `ArrayView::len()`.
-    pub fn at(&self, index: usize) -> Handle<'a, T> {
+    pub fn at(&self, index: usize) -> T {
         let index = index * T::SIZE_IN_BYTES;
         assert!(index + T::SIZE_IN_BYTES <= self.data.len());
-        Handle::new(T::from(&self.data[index]))
+        T::from(&self.data[index])
     }
 
     /// Returns an iterator to the elements of the array.
@@ -131,7 +130,7 @@ pub struct ArrayViewIter<'a, T: 'a + Struct> {
 }
 
 impl<'a, T: Struct> iter::Iterator for ArrayViewIter<'a, T> {
-    type Item = Handle<'a, T>;
+    type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_pos < self.view.len() {
             let element = self.view.at(self.next_pos);

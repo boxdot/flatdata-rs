@@ -5,7 +5,6 @@ use std::mem;
 use std::slice;
 
 use archive::{Index, IndexMut, Struct, StructMut, VariadicStruct};
-use handle::HandleMut;
 use memory;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -172,15 +171,13 @@ pub struct VariantBuilder {
 }
 
 impl VariantBuilder {
-    pub fn add_a(&mut self) -> HandleMut<<A as Struct>::Mut> {
+    pub fn add_a(&mut self) -> <A as Struct>::Mut {
         let data = unsafe { &mut *self.data };
         let old_len = data.len();
         let increment = 1 + A::SIZE_IN_BYTES;
         data.resize(old_len + increment, 0);
         data[old_len - memory::PADDING_SIZE] = 0;
-        HandleMut::new(<A as Struct>::Mut::from(
-            &mut data[1 + old_len - memory::PADDING_SIZE] as *mut _,
-        ))
+        <A as Struct>::Mut::from(&mut data[1 + old_len - memory::PADDING_SIZE] as *mut _)
     }
 }
 

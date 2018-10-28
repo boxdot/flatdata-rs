@@ -1,6 +1,5 @@
 use archive::{Index, VariadicStruct};
 use arrayview::ArrayView;
-use handle::Handle;
 
 use std::fmt;
 use std::iter;
@@ -83,14 +82,14 @@ pub struct MultiArrayViewItemIter<'a, Ts: 'a> {
 }
 
 impl<'a, Ts: 'a + VariadicStruct> iter::Iterator for MultiArrayViewItemIter<'a, Ts> {
-    type Item = Handle<'a, Ts>;
+    type Item = Ts;
     fn next(&mut self) -> Option<Self::Item> {
         if self.data.len() > 0 {
             let type_index = self.data[0];
             self.data = &self.data[1..];
             let res = Ts::from((type_index, self.data.as_ptr()));
             self.data = &self.data[res.size_in_bytes()..];
-            Some(Handle::new(res))
+            Some(res)
         } else {
             None
         }

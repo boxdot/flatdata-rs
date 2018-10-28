@@ -100,7 +100,7 @@ fn read_and_validate_coappearances() {
 
     let data: Vec<_> = vertices_data.at(0).collect();
     assert_eq!(data.len(), 1);
-    match *data[0] {
+    match data[0] {
         coappearances::VerticesData::UnaryRelation(ref data) => {
             assert_eq!(substring(strings, data.kind_ref()), "maid");
             assert_eq!(
@@ -113,7 +113,7 @@ fn read_and_validate_coappearances() {
 
     let data: Vec<_> = vertices_data.at(1).collect();
     assert_eq!(data.len(), 1);
-    match *data[0] {
+    match data[0] {
         coappearances::VerticesData::UnaryRelation(ref data) => {
             assert_eq!(substring(strings, data.kind_ref()), "housekeeper");
             assert_eq!(
@@ -126,7 +126,7 @@ fn read_and_validate_coappearances() {
 
     let data: Vec<_> = vertices_data.at(vertices_data.len() - 1).collect();
     assert_eq!(data.len(), 1);
-    match *data[0] {
+    match data[0] {
         coappearances::VerticesData::UnaryRelation(ref data) => {
             assert_eq!(substring(strings, data.kind_ref()), "gambling friend");
             assert_eq!(
@@ -228,7 +228,7 @@ fn copy_coappearances_archive(
     for item in g.vertices_data().iter() {
         let mut new_item = vertices_data.grow().expect("grow failed");
         for element in item {
-            match *element {
+            match element {
                 coappearances::VerticesData::Nickname(ref nickname) => {
                     let mut new_element = new_item.add_nickname();
                     new_element.fill_from(nickname);
