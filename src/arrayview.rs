@@ -22,6 +22,7 @@ use std::marker;
 /// use flatdata::{ArrayView, Vector};
 ///
 /// define_struct!(
+///     AFactory,
 ///     A,
 ///     AMut,
 ///     "no_schema",
@@ -177,6 +178,7 @@ mod test {
     #[allow(dead_code)]
     fn test() {
         define_struct!(
+            AFactory,
             A,
             AMut,
             "no_schema",

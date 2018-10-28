@@ -71,25 +71,18 @@ pub trait StructMut: Debug + From<*mut u8> {
 /// Vector/ArrayView-like classes cannot be directly implemented over the
 /// structs since that binds lifetime too early. Instead this generic factory
 /// and Higher-Rank-Trait-Bounds are used to emulate higher-kinded-generics
-pub trait StructFactory<'a> {
+pub trait Factory<'a> {
     /// Item this factory will produce
     type Item: Struct;
 
     /// create a new item from a slice
-    fn create(&[u8]) -> Self::Item;
-}
+    fn create(&'a [u8]) -> Self::Item;
 
-/// A factory trait used to bind lifetime to StructMut implementations
-///
-/// Vector/ArrayView-like classes cannot be directly implemented over the
-/// structs since that binds lifetime too early. Instead this generic factory
-/// and Higher-Rank-Trait-Bounds are used to emulate higher-kinded-generics
-pub trait StructMutFactory<'a> {
     /// Item this factory will produce
-    type Item: StructMut;
+    type ItemMut: StructMut;
 
     /// create a new item from a slice
-    fn create(&[u8]) -> Self::Item;
+    fn create_mut(&'a mut [u8]) -> Self::ItemMut;
 }
 
 /// A type in archive used as index of a `MultiArrayView`.
@@ -195,24 +188,36 @@ pub trait ArchiveBuilder: Clone {
 macro_rules! define_struct {
 
     // Simpler case where type and primitive_type coincide.
-    ($name:ident, $name_mut:ident, $schema:expr, $size_in_bytes:expr
+    ($factory:ident, $name:ident, $name_mut:ident, $schema:expr, $size_in_bytes:expr
         $(,($field:ident, $field_setter:ident, $type:tt, $offset:expr, $bit_size:expr))*) => {
-        define_struct!($name, $name_mut, $schema, $size_in_bytes
+        define_struct!($factory, $name, $name_mut, $schema, $size_in_bytes
             $(,($field, $field_setter, $type: $type, $offset, $bit_size))*
         );
     };
-    ($name:ident, $name_mut:ident, $schema:expr, $size_in_bytes:expr
+    ($factory:ident, $name:ident, $name_mut:ident, $schema:expr, $size_in_bytes:expr
         $(,($field:ident, $field_setter:ident, $type:tt: $primitive_type:tt, $offset:expr, $bit_size:expr))*) =>
     {
-        // TODO: We cannot store `&u8` here, since then we need to annotate the type with a
-        // lifetime, which would enforce an annotation in the trait, and this would bind the
-        // lifetime at the creating of containers as ArrayView, etc... When meta-types are
-        // introduced (i.e. when we can express that a container is parametrized over a meta-type
-        // with a lifetime bound later), we can refactor this and get rid of Handle and HandleMut.
         #[derive(Clone)]
         pub struct $name<'a> {
             data: *const u8,
             _phantom: $crate::marker::PhantomData<&'a u8>,
+        }
+
+        struct $factory{}
+
+        impl<'a> $crate::Factory<'a> for $factory
+        {
+            type Item = $name<'a>;
+            fn create(data : &'a[u8]) -> Self::Item
+            {
+                Self::Item::from(data)
+            }
+
+            type ItemMut = $name_mut<'a>;
+            fn create_mut(data: &'a mut[u8]) -> Self::ItemMut
+            {
+                Self::ItemMut::from(data)
+            }
         }
 
         impl<'a> $name<'a> {
@@ -240,6 +245,12 @@ macro_rules! define_struct {
         impl<'a> ::std::convert::From<*const u8> for $name<'a> {
             fn from(data: *const u8) -> Self {
                 Self { data, _phantom : $crate::marker::PhantomData }
+            }
+        }
+
+        impl<'a> ::std::convert::From<&'a [u8]> for $name<'a> {
+            fn from(data: &'a[u8]) -> Self {
+                Self { data : data.as_ptr(), _phantom : $crate::marker::PhantomData }
             }
         }
 
@@ -289,6 +300,12 @@ macro_rules! define_struct {
             }
         }
 
+        impl<'a> ::std::convert::From<&'a mut [u8]> for $name_mut<'a> {
+            fn from(data: &'a mut[u8]) -> Self {
+                Self { data : data.as_mut_ptr(), _phantom : $crate::marker::PhantomData }
+            }
+        }
+
         impl<'a> $crate::StructMut for $name_mut<'a> {
             type Const = $name<'a>;
 
@@ -308,9 +325,10 @@ macro_rules! define_struct {
 /// Macro used by generator to define a flatdata index.
 #[macro_export]
 macro_rules! define_index {
-    ($name:ident, $name_mut:ident, $schema:expr, $size_in_bytes:expr, $size_in_bits:expr) => {
+    ($factory:ident,$name:ident, $name_mut:ident, $schema:expr, $size_in_bytes:expr, $size_in_bits:expr) => {
         // TODO: Find a way to put this definition into an internal submodule.
         define_struct!(
+            $factory,
             $name,
             $name_mut,
             $schema,
@@ -742,6 +760,7 @@ mod test {
     #[allow(dead_code)]
     fn test_debug() {
         define_struct!(
+            AFactory,
             A,
             AMut,
             "no_schema",
@@ -770,7 +789,14 @@ mod test {
                     const IS_SIGNED: bool = $is_signed;
                 }
 
-                define_struct!(A, AMut, "no_schema", 1, (x, set_x, Variant: $type, 0, 2));
+                define_struct!(
+                    AFactory,
+                    A,
+                    AMut,
+                    "no_schema",
+                    1,
+                    (x, set_x, Variant: $type, 0, 2)
+                );
                 let mut a = StructBuf::<A>::new();
                 let output = format!("{:?}", a);
                 assert_eq!(output, "StructBuf { resource: A { x: X } }");
@@ -812,6 +838,7 @@ mod test {
         use super::Struct;
 
         define_struct!(
+            AFactory,
             A,
             AMut,
             "no_schema",
@@ -820,7 +847,14 @@ mod test {
             (y, set_y, u32, 16, 16)
         );
 
-        define_index!(IndexType32, IndexType32Mut, "IndexType32 schema", 4, 32);
+        define_index!(
+            IndexType32Factory,
+            IndexType32,
+            IndexType32Mut,
+            "IndexType32 schema",
+            4,
+            32
+        );
 
         define_variadic_struct!(Ts, TsBuilder, IndexType32,
             0 => (A, add_a));

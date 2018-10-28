@@ -25,7 +25,12 @@ use std::slice;
 /// # fn main() {
 /// use flatdata::StructBuf;
 ///
-/// define_struct!(A, AMut, "no_schema", 4,
+/// define_struct!(
+///     AFactory,
+///     A,
+///     AMut,
+///     "no_schema",
+///     4,
 ///     (x, set_x, u32, 0, 16),
 ///     (y, set_y, u32, 16, 16)
 /// );

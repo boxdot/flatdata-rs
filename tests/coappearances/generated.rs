@@ -331,6 +331,7 @@ namespace coappearances { // Optional archive containing calculated statistics.
 
 /// Builtin type to for MultiVector index
 define_index!(
+    IndexType32Factory,
     IndexType32,
     IndexType32Mut,
     schema::structs::INDEX_TYPE32,
@@ -339,6 +340,7 @@ define_index!(
 );
 
 define_struct!(
+    DegreeFactory,
     Degree,
     DegreeMut,
     schema::structs::DEGREE,
@@ -347,6 +349,7 @@ define_struct!(
 );
 
 define_struct!(
+    InvariantsFactory,
     Invariants,
     InvariantsMut,
     schema::structs::INVARIANTS,
@@ -381,6 +384,7 @@ define_archive!(Statistics, StatisticsBuilder,
 
 /// A chapter in the book.
 define_struct!(
+    ChapterFactory,
     Chapter,
     ChapterMut,
     schema::structs::CHAPTER,
@@ -391,6 +395,7 @@ define_struct!(
 
 /// A relation of a character to two other characters.
 define_struct!(
+    BinaryRelationFactory,
     BinaryRelation,
     BinaryRelationMut,
     schema::structs::BINARY_RELATION,
@@ -402,6 +407,7 @@ define_struct!(
 
 /// A relation of a character to another one.
 define_struct!(
+    UnaryRelationFactory,
     UnaryRelation,
     UnaryRelationMut,
     schema::structs::UNARY_RELATION,
@@ -412,6 +418,7 @@ define_struct!(
 
 /// A description of a character.
 define_struct!(
+    DescriptionFactory,
     Description,
     DescriptionMut,
     schema::structs::DESCRIPTION,
@@ -421,6 +428,7 @@ define_struct!(
 
 /// A nickname or an alternative name of a character.
 define_struct!(
+    NicknameFactory,
     Nickname,
     NicknameMut,
     schema::structs::NICKNAME,
@@ -435,6 +443,7 @@ define_struct!(
 /// appear. How to get the full range of chapters is described in
 /// 'coappearances.cpp:read'.
 define_struct!(
+    CoappearanceFactory,
     Coappearance,
     CoappearanceMut,
     schema::structs::COAPPEARANCE,
@@ -447,6 +456,7 @@ define_struct!(
 
 /// A character.
 define_struct!(
+    CharacterFactory,
     Character,
     CharacterMut,
     schema::structs::CHARACTER,
@@ -456,6 +466,7 @@ define_struct!(
 
 /// Meta information about the book.
 define_struct!(
+    MetaFactory,
     Meta,
     MetaMut,
     schema::structs::META,

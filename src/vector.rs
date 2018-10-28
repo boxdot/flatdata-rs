@@ -30,6 +30,7 @@ use std::marker;
 /// use flatdata::Vector;
 ///
 /// define_struct!(
+///     AFactory,
 ///     A,
 ///     AMut,
 ///     "no_schema",
@@ -218,6 +219,7 @@ impl<T: Struct> fmt::Debug for Vector<T> {
 /// };
 ///
 /// define_struct!(
+///     AFactory,
 ///     A,
 ///     AMut,
 ///     "no_schema",
