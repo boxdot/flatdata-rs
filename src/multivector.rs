@@ -97,11 +97,11 @@ use std::marker;
 /// let index_resource = storage
 ///     .read_and_check_schema("multivector_index", "index(some schema)")
 ///     .expect("read_and_check_schema failed");
-/// let index: ArrayView<Idx> = ArrayView::new(&index_resource);
+/// let index: ArrayView<Idx> = ArrayView::new(&index_resource.as_bytes());
 /// let resource = storage
 ///     .read_and_check_schema("multivector", "some schema")
 ///     .expect("read_and_check_schema failed");
-/// let mv: MultiArrayView<Idx, AB> = MultiArrayView::new(index, &resource);
+/// let mv: MultiArrayView<Idx, AB> = MultiArrayView::new(index, &resource.as_bytes());
 ///
 /// assert_eq!(mv.len(), 1);
 /// let mut item = mv.at(0);
@@ -249,11 +249,11 @@ mod tests {
         let index_resource = storage
             .read_and_check_schema("multivector_index", "index(Some schema)")
             .expect("read_and_check_schema failed");
-        let index: ArrayView<Idx> = ArrayView::new(&index_resource);
+        let index: ArrayView<Idx> = ArrayView::new(&index_resource.as_bytes());
         let resource = storage
             .read_and_check_schema("multivector", "Some schema")
             .expect("read_and_check_schema failed");
-        let mv: MultiArrayView<Idx, Variant> = MultiArrayView::new(index, &resource);
+        let mv: MultiArrayView<Idx, Variant> = MultiArrayView::new(index, &resource.as_bytes());
 
         assert_eq!(mv.len(), 1);
         let mut item = mv.at(0);

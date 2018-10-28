@@ -505,9 +505,9 @@ macro_rules! define_archive {
                 $crate::ArrayView<$element_type>, $is_optional_vector)
             {
                 static_if!($is_optional_vector, {
-                    self.$vector_resource.as_ref().map($crate::ArrayView::new)
+                    self.$vector_resource.as_ref().map(|x|$crate::ArrayView::new(x.as_bytes()))
                 }, {
-                    $crate::ArrayView::new(&self.$vector_resource)
+                    $crate::ArrayView::new(&self.$vector_resource.as_bytes())
                 })
             })*
 
@@ -518,16 +518,16 @@ macro_rules! define_archive {
                     let index_mem_desc = &self.$multivector_resource.0.as_ref();
                     let res_mem_desc = &self.$multivector_resource.1.as_ref();
                     index_mem_desc
-                        .map($crate::ArrayView::new)
+                        .map(|x|$crate::ArrayView::new(x.as_bytes()))
                         .and_then(move |index| {
                             res_mem_desc.map(move |mem_desc| {
-                                $crate::MultiArrayView::new(index, mem_desc)
+                                $crate::MultiArrayView::new(index, mem_desc.as_bytes())
                             })
                         })
                 }, {
                     $crate::MultiArrayView::new(
-                        $crate::ArrayView::new(&self.$multivector_resource.0),
-                        &self.$multivector_resource.1,
+                        $crate::ArrayView::new(&self.$multivector_resource.0.as_bytes()),
+                        &self.$multivector_resource.1.as_bytes(),
                     )
                 })
             })*

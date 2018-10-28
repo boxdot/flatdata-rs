@@ -2,7 +2,7 @@ use archive::Struct;
 use arrayview::ArrayView;
 use handle::{Handle, HandleMut};
 use memory;
-use storage::{MemoryDescriptor, ResourceHandle};
+use storage::ResourceHandle;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::fmt;
@@ -29,7 +29,11 @@ use std::marker;
 /// # fn main() {
 /// use flatdata::Vector;
 ///
-/// define_struct!(A, AMut, "no_schema", 4,
+/// define_struct!(
+///     A,
+///     AMut,
+///     "no_schema",
+///     4,
 ///     (x, set_x, u32, 0, 16),
 ///     (y, set_y, u32, 16, 16)
 /// );
@@ -116,7 +120,7 @@ where
     /// Returns an `ArrayView` to this vector.
     #[inline]
     pub fn as_view(&self) -> ArrayView<T> {
-        ArrayView::new(&MemoryDescriptor::new(&self.data[0], self.size_in_bytes()))
+        ArrayView::new(&self.data[..self.size_in_bytes()])
     }
 
     /// Returns the contents of this vector as slice of bytes.
@@ -210,19 +214,22 @@ impl<T: Struct> fmt::Debug for Vector<T> {
 /// # #[macro_use] extern crate flatdata;
 /// # fn main() {
 /// use flatdata::{
-/// create_external_vector, ArrayView, ExternalVector,
-/// MemoryResourceStorage, ResourceStorage, };
+///     create_external_vector, ArrayView, ExternalVector, MemoryResourceStorage, ResourceStorage,
+/// };
 ///
-/// define_struct!(A, AMut, "no_schema", 4,
+/// define_struct!(
+///     A,
+///     AMut,
+///     "no_schema",
+///     4,
 ///     (x, set_x, u32, 0, 16),
 ///     (y, set_y, u32, 16, 16)
 /// );
 ///
 /// let mut storage = MemoryResourceStorage::new("/root/extvec".into());
 /// {
-/// let mut v = create_external_vector::<A>(
-///         &mut storage, "vector", "Some schema content")
-///     .expect("failed to create ExternalVector");
+///     let mut v = create_external_vector::<A>(&mut storage, "vector", "Some schema content")
+///         .expect("failed to create ExternalVector");
 ///     {
 ///         let mut a = v.grow().expect("grow failed");
 ///         a.set_x(0);
@@ -240,7 +247,7 @@ impl<T: Struct> fmt::Debug for Vector<T> {
 ///     .read_and_check_schema("vector", "Some schema content")
 ///     .expect("failed to read vector resource");
 ///
-/// let view: ArrayView<A> = ArrayView::new(&resource);
+/// let view: ArrayView<A> = ArrayView::new(&resource.as_bytes());
 /// assert_eq!(view.len(), 2);
 /// assert_eq!(view.at(0).x(), 0);
 /// assert_eq!(view.at(0).y(), 1);

@@ -1,7 +1,6 @@
 use archive::{Index, VariadicStruct};
 use arrayview::ArrayView;
 use handle::Handle;
-use storage::MemoryDescriptor;
 
 use std::fmt;
 use std::iter;
@@ -16,7 +15,7 @@ use std::marker;
 #[derive(Clone)]
 pub struct MultiArrayView<'a, Idx: 'a, Ts: 'a> {
     index: ArrayView<'a, Idx>,
-    data: *const u8,
+    data: &'a [u8],
     _phantom: marker::PhantomData<&'a Ts>,
 }
 
@@ -28,10 +27,10 @@ where
     /// Creates a new `MultiArrayView` to the data at the given address.
     ///
     /// The returned array view does not own the data.
-    pub fn new(index: ArrayView<'a, Idx>, data_mem_descr: &MemoryDescriptor) -> Self {
+    pub fn new(index: ArrayView<'a, Idx>, data_mem_descr: &'a [u8]) -> Self {
         Self {
             index,
-            data: data_mem_descr.data(),
+            data: &data_mem_descr,
             _phantom: marker::PhantomData,
         }
     }
@@ -60,8 +59,7 @@ where
         let start = self.index.at(index).value();
         let end = self.index.at(index + 1).value();
         MultiArrayViewItemIter {
-            data: unsafe { self.data.offset(start as isize) },
-            end: unsafe { self.data.offset(end as isize) },
+            data: &self.data[start..end],
             _phantom: marker::PhantomData,
         }
     }
@@ -80,22 +78,18 @@ where
 /// An item may be empty.
 #[derive(Debug, Clone)]
 pub struct MultiArrayViewItemIter<'a, Ts: 'a> {
-    data: *const u8,
-    end: *const u8,
+    data: &'a [u8],
     _phantom: marker::PhantomData<&'a Ts>,
 }
 
 impl<'a, Ts: 'a + VariadicStruct> iter::Iterator for MultiArrayViewItemIter<'a, Ts> {
     type Item = Handle<'a, Ts>;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.data < self.end {
-            let type_index;
-            unsafe {
-                type_index = *self.data;
-                self.data = self.data.offset(1);
-            }
-            let res = Ts::from((type_index, self.data));
-            self.data = unsafe { self.data.offset(res.size_in_bytes() as isize) };
+        if self.data.len() > 0 {
+            let type_index = self.data[0];
+            self.data = &self.data[1..];
+            let res = Ts::from((type_index, self.data.as_ptr()));
+            self.data = &self.data[res.size_in_bytes()..];
             Some(Handle::new(res))
         } else {
             None
@@ -109,7 +103,8 @@ where
     Ts: VariadicStruct,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let preview: Vec<(usize, Vec<_>)> = self.iter()
+        let preview: Vec<(usize, Vec<_>)> = self
+            .iter()
             .take(super::DEBUG_PREVIEW_LEN)
             .enumerate()
             .map(|(index, item)| (index, item.collect()))

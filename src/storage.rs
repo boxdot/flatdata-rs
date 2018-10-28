@@ -250,6 +250,11 @@ impl MemoryDescriptor {
     pub fn size_in_bytes(&self) -> usize {
         self.size
     }
+
+    /// Converts to bytes (lifetime corresponds to the descriptor's)
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.ptr, self.size) }
+    }
 }
 
 /// A handle to a resource for writing to it.

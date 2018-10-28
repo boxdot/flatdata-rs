@@ -1,11 +1,9 @@
 use archive::Struct;
 use handle::Handle;
-use storage::MemoryDescriptor;
 
 use std::fmt;
 use std::iter;
 use std::marker;
-use std::slice;
 
 /// A read-only view on a contiguous sequence of flatdata structs of the same
 /// type `T`.
@@ -59,9 +57,9 @@ impl<'a, T: Struct> ArrayView<'a, T> {
     /// Creates a new `ArrayView` to the data at the given address.
     ///
     /// The returned array view does not own the data.
-    pub fn new(mem_descr: &MemoryDescriptor) -> Self {
+    pub fn new(data: &'a [u8]) -> Self {
         Self {
-            data: unsafe { slice::from_raw_parts(mem_descr.data(), mem_descr.size_in_bytes()) },
+            data,
             _phantom: marker::PhantomData,
         }
     }
@@ -175,7 +173,6 @@ impl<'a, T: Struct> fmt::Debug for ArrayViewIter<'a, T> {
 mod test {
     use archive::Struct;
     use memory;
-    use storage::MemoryDescriptor;
 
     #[test]
     #[allow(dead_code)]
@@ -191,7 +188,7 @@ mod test {
 
         let mut buffer = vec![255_u8; 4];
         buffer.extend(vec![0_u8; A::SIZE_IN_BYTES * 10 + memory::PADDING_SIZE]);
-        let data = MemoryDescriptor::new(buffer.as_ptr(), buffer.len() - memory::PADDING_SIZE);
+        let data = &buffer[..buffer.len() - memory::PADDING_SIZE];
         let view: super::ArrayView<A> = super::ArrayView::new(&data);
         assert_eq!(11, view.len());
         let first = view.at(0);
