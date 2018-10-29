@@ -115,8 +115,6 @@ where
 
 /// A type in archive used as index of a `MultiArrayView`.
 pub trait Index: Struct {
-    /// Corresponding mutable index type used for writing an index.
-    type IndexMut: IndexMut;
     /// Returns the index value.
     fn value(&self) -> usize;
 }
@@ -382,7 +380,6 @@ macro_rules! define_index {
         );
 
         impl<'a> $crate::Index for $name<'a> {
-            type IndexMut = $name_mut<'a>;
             fn value(&self) -> usize {
                 self.value() as usize
             }
