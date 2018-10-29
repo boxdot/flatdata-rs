@@ -191,8 +191,7 @@ fn copy_coappearances_archive(
         "meta"
     ));
 
-    let gb_ref: *mut coappearances::GraphBuilder = &mut gb as *mut _;
-    let mut vertices = unsafe { (*gb_ref).start_vertices().expect("start_vertices failed") };
+    let mut vertices = gb.start_vertices().expect("start_vertices failed");
     for v in g.vertices().iter() {
         let mut w = vertices.grow().expect("grow failed");
         w.fill_from(&v);
@@ -208,11 +207,7 @@ fn copy_coappearances_archive(
     for e in g.edges().iter() {
         edges.grow().fill_from(&e);
     }
-    unsafe {
-        (*gb_ref)
-            .set_edges(&edges.as_view())
-            .expect("set_edges failed")
-    };
+    gb.set_edges(&edges.as_view()).expect("set_edges failed");
 
     assert!(compare_resource(
         &source_archive_path,
@@ -220,11 +215,9 @@ fn copy_coappearances_archive(
         "edges"
     ));
 
-    let mut vertices_data = unsafe {
-        (*gb_ref)
-            .start_vertices_data()
-            .expect("start_vertices_data failed")
-    };
+    let mut vertices_data = gb
+        .start_vertices_data()
+        .expect("start_vertices_data failed");
     for item in g.vertices_data().iter() {
         let mut new_item = vertices_data.grow().expect("grow failed");
         for element in item {
