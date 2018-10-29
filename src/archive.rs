@@ -535,14 +535,14 @@ macro_rules! define_archive {
             }
 
             $(pub fn $struct_resource(&self) -> opt!(
-                $struct_type, $is_optional_struct)
+                <$struct_type as $crate::Factory>::Item, $is_optional_struct)
             {
                 static_if!($is_optional_struct, {
                     self.$struct_resource.as_ref().map(|mem_desc| {
-                        $struct_type::from(mem_desc.data())
+                        <$struct_type as $crate::Factory>::create(&mem_desc.as_bytes())
                     })
                 }, {
-                    $struct_type::from(self.$struct_resource.data())
+                    <$struct_type as $crate::Factory>::create(&self.$struct_resource.as_bytes())
                 })
             })*
 
@@ -705,10 +705,10 @@ macro_rules! define_archive {
         impl $builder_name {
             $(pub fn $struct_setter(
                 &mut self,
-                resource: &<$struct_type as $crate::Struct>::Mut,
+                resource: <$struct_type as $crate::Factory>::Item,
             ) -> ::std::io::Result<()> {
                 let data = unsafe {
-                    ::std::slice::from_raw_parts(resource.data, $struct_type::SIZE_IN_BYTES)
+                    ::std::slice::from_raw_parts(resource.data, <$struct_type as $crate::Factory>::Item::SIZE_IN_BYTES)
                 };
                 self.storage
                     .borrow_mut()
@@ -795,7 +795,7 @@ mod test {
             (x, set_x, u32, 0, 16),
             (y, set_y, u32, 16, 16)
         );
-        let a = StructBuf::<A>::new();
+        let a = StructBuf::<AFactory>::new();
         let output = format!("{:?}", a);
         assert_eq!(output, "StructBuf { resource: A { x: 0, y: 0 } }");
     }
@@ -824,11 +824,11 @@ mod test {
                     1,
                     (x, set_x, Variant: $type, 0, 2)
                 );
-                let mut a = StructBuf::<A>::new();
+                let mut a = StructBuf::<AFactory>::new();
                 let output = format!("{:?}", a);
                 assert_eq!(output, "StructBuf { resource: A { x: X } }");
 
-                a.set_x(Variant::Y);
+                a.get_mut().set_x(Variant::Y);
                 let output = format!("{:?}", a);
                 assert_eq!(output, "StructBuf { resource: A { x: Y } }");
             }
@@ -896,8 +896,8 @@ mod test {
 
         define_archive!(Arch, ArchBuilder, "Arch schema";
             // struct resources
-            (a, set_a, A, "a schema", false),
-            (b, set_b, A, "b schema", true);
+            (a, set_a, AFactory, "a schema", false),
+            (b, set_b, AFactory, "b schema", true);
             // vector resources
             (v, set_v, start_v, AFactory, "v schema", false),
             (w, set_w, start_w, AFactory, "w schema", true);

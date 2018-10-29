@@ -182,9 +182,9 @@ fn copy_coappearances_archive(
     let mut gb = coappearances::GraphBuilder::new(storage).expect("could not create archive");
 
     // copy data
-    let mut meta = flatdata::StructBuf::<coappearances::Meta>::new();
-    meta.fill_from(&g.meta());
-    gb.set_meta(&meta).expect("set_meta failed");
+    let mut meta = flatdata::StructBuf::<coappearances::MetaFactory>::new();
+    meta.get_mut().fill_from(&g.meta());
+    gb.set_meta(meta.get()).expect("set_meta failed");
     assert!(compare_resource(
         &source_archive_path,
         &archive_path,
@@ -314,13 +314,18 @@ fn read_write_statistics_subarchive() {
     );
 
     let mut builder = gb.statistics().expect("statistics failed");
-    let mut inv = flatdata::StructBuf::<coappearances::Invariants>::new();
-    inv.set_max_degree(71);
-    inv.set_max_degree_ref(46);
-    inv.set_min_degree(1);
-    inv.set_min_degree_ref(9);
-    inv.set_num_connected_components(1);
-    builder.set_invariants(&inv).expect("set_invariants failed");
+    let mut inv_buf = flatdata::StructBuf::<coappearances::InvariantsFactory>::new();
+    {
+        let mut inv = inv_buf.get_mut();
+        inv.set_max_degree(71);
+        inv.set_max_degree_ref(46);
+        inv.set_min_degree(1);
+        inv.set_min_degree_ref(9);
+        inv.set_num_connected_components(1);
+    }
+    builder
+        .set_invariants(inv_buf.get())
+        .expect("set_invariants failed");
 
     let degrees = vec![
         4, 11, 25, 43, 3, 3, 4, 7, 2, 1, 1, 1, 12, 3, 1, 4, 8, 2, 6, 40, 2, 5, 2, 1, 1, 6, 3, 16,

@@ -371,7 +371,7 @@ define_archive!(Statistics, StatisticsBuilder,
     schema::structs::STATISTICS;
     // struct resources
     (invariants, set_invariants,
-        Invariants, schema::resources::statistics::INVARIANTS, false);
+        InvariantsFactory, schema::resources::statistics::INVARIANTS, false);
     // vector resources
     (vertex_degrees, set_vertex_degrees, start_vertex_degrees,
         DegreeFactory, schema::resources::statistics::VERTEX_DEGREES, false);
@@ -487,7 +487,7 @@ define_archive!(Graph, GraphBuilder,
     schema::structs::GRAPH;
     // struct resources
     (meta, set_meta,
-        Meta, schema::resources::graph::META, false);
+        MetaFactory, schema::resources::graph::META, false);
     // vector resources
     (vertices, set_vertices, start_vertices,
         CharacterFactory, schema::resources::graph::VERTICES, false),
