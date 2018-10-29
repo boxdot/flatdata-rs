@@ -80,7 +80,7 @@ where
 ///
 /// An item may be empty.
 #[derive(Debug, Clone)]
-pub struct MultiArrayViewItemIter<'a, Ts>
+pub struct MultiArrayViewItemIter<'a, Ts: 'a>
 where
     Ts: for<'b> VariadicStructFactory<'b>,
 {
@@ -134,7 +134,7 @@ where
 
 /// Iterator through items of an multivector.
 #[derive(Debug, Clone)]
-pub struct MultiArrayViewIter<'a, Idx, Ts>
+pub struct MultiArrayViewIter<'a, Idx: 'a, Ts: 'a>
 where
     Idx: for<'b> IndexFactory<'b>,
     Ts: for<'b> VariadicStructFactory<'b>,

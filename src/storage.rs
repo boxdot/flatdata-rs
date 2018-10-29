@@ -11,7 +11,6 @@ use std::mem;
 use std::ops::DerefMut;
 use std::ptr;
 use std::rc::Rc;
-use std::slice;
 use std::str;
 
 pub trait Stream: Write + Seek {}
@@ -114,8 +113,7 @@ pub trait ResourceStorage {
         }
 
         // Note: len is size in bytes since we are constructing u8 slice.
-        let stored_schema_slice: &[u8] =
-            unsafe { slice::from_raw_parts(schema.data(), schema.size_in_bytes()) };
+        let stored_schema_slice: &[u8] = unsafe { schema.as_bytes() };
         let stored_schema =
             str::from_utf8(stored_schema_slice).map_err(ResourceStorageError::Utf8Error)?;
         if stored_schema != expected_schema {
@@ -256,8 +254,8 @@ impl MemoryDescriptor {
     }
 
     /// Converts to bytes (lifetime corresponds to the descriptor's)
-    pub fn as_bytes(&self) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(self.ptr, self.size) }
+    pub unsafe fn as_bytes(&self) -> &[u8] {
+        std::slice::from_raw_parts(self.ptr, self.size)
     }
 }
 

@@ -137,7 +137,7 @@ where
 
 /// Iterator through elements of `ArrayView`.
 #[derive(Clone)]
-pub struct ArrayViewIter<'a, T>
+pub struct ArrayViewIter<'a, T: 'a>
 where
     T: for<'b> Factory<'b>,
 {

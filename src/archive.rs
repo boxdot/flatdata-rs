@@ -566,10 +566,10 @@ macro_rules! define_archive {
             {
                 static_if!($is_optional_struct, {
                     self.$struct_resource.as_ref().map(|mem_desc| {
-                        <$struct_type as $crate::Factory>::create(&mem_desc.as_bytes())
+                        <$struct_type as $crate::Factory>::create(&unsafe{mem_desc.as_bytes()})
                     })
                 }, {
-                    <$struct_type as $crate::Factory>::create(&self.$struct_resource.as_bytes())
+                    <$struct_type as $crate::Factory>::create(&unsafe{self.$struct_resource.as_bytes()})
                 })
             })*
 
@@ -577,9 +577,9 @@ macro_rules! define_archive {
                 $crate::ArrayView<$element_type>, $is_optional_vector)
             {
                 static_if!($is_optional_vector, {
-                    self.$vector_resource.as_ref().map(|x|$crate::ArrayView::new(x.as_bytes()))
+                    self.$vector_resource.as_ref().map(|x|$crate::ArrayView::new(unsafe{x.as_bytes()}))
                 }, {
-                    $crate::ArrayView::new(&self.$vector_resource.as_bytes())
+                    $crate::ArrayView::new(&unsafe{self.$vector_resource.as_bytes()})
                 })
             })*
 
@@ -590,16 +590,16 @@ macro_rules! define_archive {
                     let index_mem_desc = &self.$multivector_resource.0.as_ref();
                     let res_mem_desc = &self.$multivector_resource.1.as_ref();
                     index_mem_desc
-                        .map(|x|$crate::ArrayView::new(x.as_bytes()))
+                        .map(|x|$crate::ArrayView::new(unsafe{x.as_bytes()}))
                         .and_then(move |index| {
                             res_mem_desc.map(move |mem_desc| {
-                                $crate::MultiArrayView::new(index, mem_desc.as_bytes())
+                                $crate::MultiArrayView::new(index, unsafe{mem_desc.as_bytes()})
                             })
                         })
                 }, {
                     $crate::MultiArrayView::new(
-                        $crate::ArrayView::new(&self.$multivector_resource.0.as_bytes()),
-                        &self.$multivector_resource.1.as_bytes(),
+                        $crate::ArrayView::new(&unsafe{self.$multivector_resource.0.as_bytes()}),
+                        &unsafe{self.$multivector_resource.1.as_bytes()},
                     )
                 })
             })*
@@ -607,17 +607,11 @@ macro_rules! define_archive {
             $(pub fn $raw_data_resource(&self) -> opt!(&[u8], $is_optional_raw_data) {
                 static_if!($is_optional_raw_data, {
                     self.$raw_data_resource.as_ref().map(|mem_desc| {
-                        unsafe {
-                            ::std::slice::from_raw_parts(
-                                mem_desc.data(),
-                                mem_desc.size_in_bytes())
-                        }
+                        unsafe { mem_desc.as_bytes() }
                     })
                 }, {
                     unsafe {
-                        ::std::slice::from_raw_parts(
-                            self.$raw_data_resource.data(),
-                            self.$raw_data_resource.size_in_bytes())
+                        self.$raw_data_resource.as_bytes()
                     }
                 })
             })*
