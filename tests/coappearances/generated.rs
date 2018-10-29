@@ -374,7 +374,7 @@ define_archive!(Statistics, StatisticsBuilder,
         Invariants, schema::resources::statistics::INVARIANTS, false);
     // vector resources
     (vertex_degrees, set_vertex_degrees, start_vertex_degrees,
-        Degree, schema::resources::statistics::VERTEX_DEGREES, false);
+        DegreeFactory, schema::resources::statistics::VERTEX_DEGREES, false);
     // multivector resources
 ;
     // raw data resources
@@ -490,15 +490,15 @@ define_archive!(Graph, GraphBuilder,
         Meta, schema::resources::graph::META, false);
     // vector resources
     (vertices, set_vertices, start_vertices,
-        Character, schema::resources::graph::VERTICES, false),
+        CharacterFactory, schema::resources::graph::VERTICES, false),
     (edges, set_edges, start_edges,
-        Coappearance, schema::resources::graph::EDGES, false),
+        CoappearanceFactory, schema::resources::graph::EDGES, false),
     (chapters, set_chapters, start_chapters,
-        Chapter, schema::resources::graph::CHAPTERS, false);
+        ChapterFactory, schema::resources::graph::CHAPTERS, false);
     // multivector resources
     (vertices_data, start_vertices_data,
         VerticesData, schema::resources::graph::VERTICES_DATA,
-        vertices_data_index, IndexType32, false);
+        vertices_data_index, IndexType32Factory, false);
     // raw data resources
     (strings, set_strings,
         schema::resources::graph::STRINGS, false);

@@ -4,8 +4,7 @@ use std::convert;
 use std::mem;
 use std::slice;
 
-use archive::{Index, IndexMut, Struct, StructMut, VariadicStruct};
-use memory;
+use archive::{Index, IndexMut, Struct, StructMut};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Idx {
@@ -140,49 +139,5 @@ impl StructMut for AMut {
     type Const = A;
     fn as_mut_ptr(&mut self) -> *mut u8 {
         self.data
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Variant {
-    A(A),
-}
-
-impl convert::From<(u8, *const u8)> for Variant {
-    fn from((type_index, data): (u8, *const u8)) -> Variant {
-        match type_index {
-            0 => Variant::A(A::from(data)),
-            _ => panic!("invalid index"),
-        }
-    }
-}
-
-impl VariadicStruct for Variant {
-    type ItemBuilder = VariantBuilder;
-    fn size_in_bytes(&self) -> usize {
-        match *self {
-            Variant::A(_) => A::SIZE_IN_BYTES,
-        }
-    }
-}
-
-pub struct VariantBuilder {
-    data: *mut Vec<u8>,
-}
-
-impl VariantBuilder {
-    pub fn add_a(&mut self) -> <A as Struct>::Mut {
-        let data = unsafe { &mut *self.data };
-        let old_len = data.len();
-        let increment = 1 + A::SIZE_IN_BYTES;
-        data.resize(old_len + increment, 0);
-        data[old_len - memory::PADDING_SIZE] = 0;
-        <A as Struct>::Mut::from(&mut data[1 + old_len - memory::PADDING_SIZE] as *mut _)
-    }
-}
-
-impl convert::From<*mut Vec<u8>> for VariantBuilder {
-    fn from(data: *mut Vec<u8>) -> Self {
-        Self { data }
     }
 }

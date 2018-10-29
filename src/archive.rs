@@ -85,6 +85,33 @@ pub trait Factory<'a> {
     fn create_mut(&'a mut [u8]) -> Self::ItemMut;
 }
 
+/// A factory trait used to bind lifetime to Struct implementations
+///
+/// Vector/ArrayView-like classes cannot be directly implemented over the
+/// structs since that binds lifetime too early. Instead this generic factory
+/// and Higher-Rank-Trait-Bounds are used to emulate higher-kinded-generics
+pub trait IndexFactory<'a>: Factory<'a> {
+    /// Provide getter for index
+    fn index(data: Self::Item) -> usize;
+
+    /// Provide setter for index
+    fn set_index(data: Self::ItemMut, value: usize);
+}
+
+impl<'a, F: Factory<'a>> IndexFactory<'a> for F
+where
+    F::Item: Index,
+    F::ItemMut: IndexMut,
+{
+    fn index(data: Self::Item) -> usize {
+        data.value()
+    }
+
+    fn set_index(mut data: Self::ItemMut, value: usize) {
+        data.set_value(value);
+    }
+}
+
 /// A type in archive used as index of a `MultiArrayView`.
 pub trait Index: Struct {
     /// Corresponding mutable index type used for writing an index.
@@ -203,7 +230,7 @@ macro_rules! define_struct {
             _phantom: $crate::marker::PhantomData<&'a u8>,
         }
 
-        struct $factory{}
+        pub struct $factory{}
 
         impl<'a> $crate::Factory<'a> for $factory
         {
@@ -872,11 +899,11 @@ mod test {
             (a, set_a, A, "a schema", false),
             (b, set_b, A, "b schema", true);
             // vector resources
-            (v, set_v, start_v, A, "v schema", false),
-            (w, set_w, start_w, A, "w schema", true);
+            (v, set_v, start_v, AFactory, "v schema", false),
+            (w, set_w, start_w, AFactory, "w schema", true);
             // multivector resources
-            (mv, start_mv, Ts, "mv schema", mv_index, IndexType32, false),
-            (mw, start_mw, Ts, "mw schema", mw_index, IndexType32, true);
+            (mv, start_mv, Ts, "mv schema", mv_index, IndexType32Factory, false),
+            (mw, start_mw, Ts, "mw schema", mw_index, IndexType32Factory, true);
             // raw data resources
             (r, set_r, "r schema", false),
             (s, set_s, "s schema", true);

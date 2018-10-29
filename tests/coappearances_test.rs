@@ -204,7 +204,7 @@ fn copy_coappearances_archive(
         "vertices"
     ));
 
-    let mut edges = flatdata::Vector::<coappearances::Coappearance>::new();
+    let mut edges = flatdata::Vector::<coappearances::CoappearanceFactory>::new();
     for e in g.edges().iter() {
         edges.grow().fill_from(&e);
     }
@@ -261,7 +261,7 @@ fn copy_coappearances_archive(
         "vertices_data_index"
     ));
 
-    let mut chapters = flatdata::Vector::<coappearances::Chapter>::new();
+    let mut chapters = flatdata::Vector::<coappearances::ChapterFactory>::new();
     for ch in g.chapters().iter() {
         chapters.grow().fill_from(&ch);
     }

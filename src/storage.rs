@@ -1,4 +1,4 @@
-use archive::{ArchiveBuilder, Index, Struct, VariadicStruct};
+use archive::{ArchiveBuilder, Factory, IndexFactory, VariadicStruct};
 use error::ResourceStorageError;
 use memory::{SizeType, PADDING_SIZE};
 use multivector::MultiVector;
@@ -141,7 +141,7 @@ pub trait ResourceStorage {
 /// Creates a new resource with given name and schema in storage, and returns
 /// an [`ExternalVector`] using this resource for writing and flushing data to
 /// storage.
-pub fn create_external_vector<T: Struct>(
+pub fn create_external_vector<T: for<'a> Factory<'a>>(
     storage: &mut ResourceStorage,
     resource_name: &str,
     schema: &str,
@@ -162,7 +162,7 @@ pub fn create_external_vector<T: Struct>(
 /// Creates a new resource with given name and schema in storage, and returns
 /// an [`MultiVector`] using this resource for writing and flushing data to
 /// storage.
-pub fn create_multi_vector<Idx: Index, Ts: VariadicStruct>(
+pub fn create_multi_vector<Idx: for<'b> IndexFactory<'b>, Ts: VariadicStruct>(
     storage: &mut ResourceStorage,
     resource_name: &str,
     schema: &str,

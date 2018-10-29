@@ -1,4 +1,4 @@
-use archive::Struct;
+use archive::{Factory, Struct};
 
 use std::fmt;
 use std::iter;
@@ -31,7 +31,7 @@ use std::marker;
 ///     (y, set_y, u32, 16, 16)
 /// );
 ///
-/// let mut v: Vector<A> = Vector::with_len(1);
+/// let mut v: Vector<AFactory> = Vector::with_len(1);
 /// {
 ///     let mut a = v.at_mut(0);
 ///     a.set_x(1);
@@ -48,12 +48,18 @@ use std::marker;
 /// [`Vector`]: struct.Vector.html
 /// [`ExternalVector`]: struct.ExternalVector.html
 #[derive(Clone)]
-pub struct ArrayView<'a, T: 'a> {
+pub struct ArrayView<'a, T>
+where
+    T: for<'b> Factory<'b>,
+{
     data: &'a [u8],
     _phantom: marker::PhantomData<T>,
 }
 
-impl<'a, T: Struct> ArrayView<'a, T> {
+impl<'a, T> ArrayView<'a, T>
+where
+    T: for<'b> Factory<'b>,
+{
     /// Creates a new `ArrayView` to the data at the given address.
     ///
     /// The returned array view does not own the data.
@@ -66,7 +72,7 @@ impl<'a, T: Struct> ArrayView<'a, T> {
 
     /// Number of elements in the array.
     pub fn len(&self) -> usize {
-        self.data.len() / T::SIZE_IN_BYTES
+        self.data.len() / <T as Factory>::Item::SIZE_IN_BYTES
     }
 
     /// Return `true` if the array is empty.
@@ -80,10 +86,10 @@ impl<'a, T: Struct> ArrayView<'a, T> {
     /// # Panics
     ///
     /// Panics if index is greater than or equal to `ArrayView::len()`.
-    pub fn at(&self, index: usize) -> T {
-        let index = index * T::SIZE_IN_BYTES;
-        assert!(index + T::SIZE_IN_BYTES <= self.data.len());
-        T::from(&self.data[index])
+    pub fn at(&self, index: usize) -> <T as Factory>::Item {
+        let index = index * <T as Factory>::Item::SIZE_IN_BYTES;
+        assert!(index + <T as Factory>::Item::SIZE_IN_BYTES <= self.data.len());
+        T::create(&self.data[index..])
     }
 
     /// Returns an iterator to the elements of the array.
@@ -100,7 +106,10 @@ impl<'a, T: Struct> ArrayView<'a, T> {
     }
 }
 
-impl<'a, T: Struct> fmt::Debug for ArrayView<'a, T> {
+impl<'a, T> fmt::Debug for ArrayView<'a, T>
+where
+    T: for<'b> Factory<'b>,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let preview: Vec<_> = self.iter().take(super::DEBUG_PREVIEW_LEN).collect();
         write!(
@@ -117,7 +126,10 @@ impl<'a, T: Struct> fmt::Debug for ArrayView<'a, T> {
     }
 }
 
-impl<'a, T: Struct> AsRef<[u8]> for ArrayView<'a, T> {
+impl<'a, T> AsRef<[u8]> for ArrayView<'a, T>
+where
+    T: for<'b> Factory<'b>,
+{
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
@@ -125,13 +137,19 @@ impl<'a, T: Struct> AsRef<[u8]> for ArrayView<'a, T> {
 
 /// Iterator through elements of `ArrayView`.
 #[derive(Clone)]
-pub struct ArrayViewIter<'a, T: 'a + Struct> {
+pub struct ArrayViewIter<'a, T>
+where
+    T: for<'b> Factory<'b>,
+{
     view: &'a ArrayView<'a, T>,
     next_pos: usize,
 }
 
-impl<'a, T: Struct> iter::Iterator for ArrayViewIter<'a, T> {
-    type Item = T;
+impl<'a, T> iter::Iterator for ArrayViewIter<'a, T>
+where
+    T: for<'b> Factory<'b>,
+{
+    type Item = <T as Factory<'a>>::Item;
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_pos < self.view.len() {
             let element = self.view.at(self.next_pos);
@@ -143,13 +161,19 @@ impl<'a, T: Struct> iter::Iterator for ArrayViewIter<'a, T> {
     }
 }
 
-impl<'a, T: Struct> iter::ExactSizeIterator for ArrayViewIter<'a, T> {
+impl<'a, T> iter::ExactSizeIterator for ArrayViewIter<'a, T>
+where
+    T: for<'b> Factory<'b>,
+{
     fn len(&self) -> usize {
         self.view.len()
     }
 }
 
-impl<'a, T: Struct> fmt::Debug for ArrayViewIter<'a, T> {
+impl<'a, T> fmt::Debug for ArrayViewIter<'a, T>
+where
+    T: for<'b> Factory<'b>,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let preview = self
             .view
@@ -190,7 +214,7 @@ mod test {
         let mut buffer = vec![255_u8; 4];
         buffer.extend(vec![0_u8; A::SIZE_IN_BYTES * 10 + memory::PADDING_SIZE]);
         let data = &buffer[..buffer.len() - memory::PADDING_SIZE];
-        let view: super::ArrayView<A> = super::ArrayView::new(&data);
+        let view: super::ArrayView<AFactory> = super::ArrayView::new(&data);
         assert_eq!(11, view.len());
         let first = view.at(0);
         assert_eq!(65535, first.x());

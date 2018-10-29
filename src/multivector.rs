@@ -1,4 +1,4 @@
-use archive::{Index, IndexMut, StructMut, VariadicStruct};
+use archive::{Factory, IndexFactory, StructMut, VariadicStruct};
 use memory;
 use storage::ResourceHandle;
 use vector::ExternalVector;
@@ -73,7 +73,7 @@ use std::marker;
 ///
 /// let mut storage = MemoryResourceStorage::new("/root/multivec".into());
 /// {
-///     let mut mv = create_multi_vector::<Idx, AB>(
+///     let mut mv = create_multi_vector::<IdxFactory, AB>(
 ///             &mut storage, "multivector", "some schema")
 ///         .expect("failed to create MultiVector");
 ///     {
@@ -96,11 +96,11 @@ use std::marker;
 /// let index_resource = storage
 ///     .read_and_check_schema("multivector_index", "index(some schema)")
 ///     .expect("read_and_check_schema failed");
-/// let index: ArrayView<Idx> = ArrayView::new(&index_resource.as_bytes());
+/// let index: ArrayView<IdxFactory> = ArrayView::new(&index_resource.as_bytes());
 /// let resource = storage
 ///     .read_and_check_schema("multivector", "some schema")
 ///     .expect("read_and_check_schema failed");
-/// let mv: MultiArrayView<Idx, AB> = MultiArrayView::new(index, &resource.as_bytes());
+/// let mv: MultiArrayView<IdxFactory, AB> = MultiArrayView::new(index, &resource.as_bytes());
 ///
 /// assert_eq!(mv.len(), 1);
 /// let mut item = mv.at(0);
@@ -126,7 +126,10 @@ use std::marker;
 /// [`ExternalVector`]: struct.ExternalVector.html
 /// [`Vector`]: struct.Vector.html
 /// [`MultiArrayView`]: struct.MultiArrayView.html
-pub struct MultiVector<Idx, Ts> {
+pub struct MultiVector<Idx, Ts>
+where
+    Idx: for<'b> IndexFactory<'b>,
+{
     index: ExternalVector<Idx>,
     data: Vec<u8>,
     data_handle: ResourceHandle,
@@ -134,7 +137,10 @@ pub struct MultiVector<Idx, Ts> {
     _phantom: marker::PhantomData<Ts>,
 }
 
-impl<Idx: Index, Ts: VariadicStruct> MultiVector<Idx, Ts> {
+impl<Idx, Ts: VariadicStruct> MultiVector<Idx, Ts>
+where
+    Idx: for<'b> IndexFactory<'b>,
+{
     /// Creates an empty multivector.
     pub fn new(index: ExternalVector<Idx>, data_handle: ResourceHandle) -> Self {
         Self {
@@ -178,8 +184,11 @@ impl<Idx: Index, Ts: VariadicStruct> MultiVector<Idx, Ts> {
     }
 
     fn add_to_index(&mut self) -> io::Result<()> {
-        let mut idx_mut = Idx::IndexMut::from(self.index.grow()?.as_mut_ptr());
-        idx_mut.set_value(self.size_flushed + self.data.len() - memory::PADDING_SIZE);
+        let idx_mut = <Idx as Factory>::ItemMut::from(self.index.grow()?.as_mut_ptr());
+        <Idx as IndexFactory>::set_index(
+            idx_mut,
+            self.size_flushed + self.data.len() - memory::PADDING_SIZE,
+        );
         Ok(())
     }
 
@@ -197,34 +206,62 @@ impl<Idx: Index, Ts: VariadicStruct> MultiVector<Idx, Ts> {
     }
 }
 
-impl<Idx, Ts> Drop for MultiVector<Idx, Ts> {
+/*
+DOES NOT WORK WITH HRTB!
+impl<Idx, Ts> Drop for MultiVector<Idx, Ts>
+where
+    Idx: for<'b> Factory<'b>,
+    for<'b> <Idx as Factory<'b>>::Item: Index,
+{
     fn drop(&mut self) {
         debug_assert!(!self.data_handle.is_open(), "MultiVector not closed")
     }
 }
+*/
 
-impl<Idx: Index, Ts: VariadicStruct> fmt::Debug for MultiVector<Idx, Ts> {
+impl<Idx, Ts: VariadicStruct> fmt::Debug for MultiVector<Idx, Ts>
+where
+    Idx: for<'b> IndexFactory<'b>,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "MultiVector {{ len: {} }}", self.index.len())
     }
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 mod tests {
-    use super::super::test_structs::*;
+    use archive::Struct;
     use arrayview::ArrayView;
     use memstorage::MemoryResourceStorage;
     use multiarrayview::MultiArrayView;
     use storage::create_multi_vector;
     use storage::ResourceStorage;
 
+    define_index!(IdxFactory, Idx, IdxMut, "some_idx_schema", 4, 32);
+
+    define_struct!(
+        AFactory,
+        A,
+        AMut,
+        "no_schema",
+        4,
+        (x, set_x, u32, 0, 16),
+        (y, set_y, u32, 16, 16)
+    );
+
+    define_variadic_struct!(Variant, VariantItemBuilder, Idx, 0 => (A, add_a) );
+
     #[test]
     fn test_multi_vector() {
         let mut storage = MemoryResourceStorage::new("/root/resources".into());
         {
-            let mut mv =
-                create_multi_vector::<Idx, Variant>(&mut storage, "multivector", "Some schema")
-                    .expect("failed to create MultiVector");
+            let mut mv = create_multi_vector::<IdxFactory, Variant>(
+                &mut storage,
+                "multivector",
+                "Some schema",
+            )
+            .expect("failed to create MultiVector");
             {
                 let mut item = mv.grow().expect("grow failed");
                 {
@@ -248,11 +285,12 @@ mod tests {
         let index_resource = storage
             .read_and_check_schema("multivector_index", "index(Some schema)")
             .expect("read_and_check_schema failed");
-        let index: ArrayView<Idx> = ArrayView::new(&index_resource.as_bytes());
+        let index: ArrayView<IdxFactory> = ArrayView::new(&index_resource.as_bytes());
         let resource = storage
             .read_and_check_schema("multivector", "Some schema")
             .expect("read_and_check_schema failed");
-        let mv: MultiArrayView<Idx, Variant> = MultiArrayView::new(index, &resource.as_bytes());
+        let mv: MultiArrayView<IdxFactory, Variant> =
+            MultiArrayView::new(index, &resource.as_bytes());
 
         assert_eq!(mv.len(), 1);
         let mut item = mv.at(0);
