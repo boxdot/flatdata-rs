@@ -98,6 +98,7 @@ pub trait IndexFactory<'a>: Factory<'a> {
     fn set_index(data: Self::ItemMut, value: usize);
 }
 
+/// Implement IndexFactory fdr all Factories that produce Index/IndexMut
 impl<'a, F: Factory<'a>> IndexFactory<'a> for F
 where
     F::Item: Index,
@@ -133,6 +134,25 @@ pub type TypeIndex = u8;
 ///
 /// Implemented by an enum type.
 pub trait VariadicStruct: Clone + Debug + PartialEq + From<(TypeIndex, *const u8)> {
+    /// Returns size in bytes of the current variant type.
+    ///
+    /// Since a variadic struct can contain types of different sized, this is a
+    /// method based on the current value type.
+    fn size_in_bytes(&self) -> usize;
+}
+
+/// A type used to create VariadicStructs
+///
+/// Vector/ArrayView-like classes cannot be directly implemented over the
+/// structs since that binds lifetime too early. Instead this generic factory
+/// and Higher-Rank-Trait-Bounds are used to emulate higher-kinded-generics
+pub trait VariadicStructFactory<'a> {
+    /// Reader type
+    type Item: VariadicStruct;
+
+    /// Create a reader for specific type of data
+    fn create(TypeIndex, &'a [u8]) -> Self::Item;
+
     /// Associated type used for building an item in `MultiVector` based on
     /// this variadic type.
     ///
@@ -140,12 +160,10 @@ pub trait VariadicStruct: Clone + Debug + PartialEq + From<(TypeIndex, *const u8
     /// [`MultiVector::grow`](struct.MultiVector.html#method.grow)
     /// method. It provides convenient methods `add_{variant_name}` for each
     /// enum variant.
-    type ItemBuilder: From<*mut Vec<u8>>;
-    /// Returns size in bytes of the current variant type.
-    ///
-    /// Since a variadic struct can contain types of different sized, this is a
-    /// method based on the current value type.
-    fn size_in_bytes(&self) -> usize;
+    type ItemMut;
+
+    /// Create a builder for a list of VariadicStruct
+    fn create_mut(&'a mut Vec<u8>) -> Self::ItemMut;
 }
 
 /// A flatdata archive representing serialized data.
@@ -382,7 +400,7 @@ macro_rules! define_index {
 /// and `MultiArrayView`.
 #[macro_export]
 macro_rules! define_variadic_struct {
-    ($name:ident, $item_builder_name:ident, $index_type:path,
+    ($factory:ident, $name:ident, $item_builder_name:ident, $index_type:path,
         $($type_index:expr => ($type:tt, $add_type_fn:ident)),+) =>
     {
         #[derive(Clone, PartialEq)]
@@ -409,8 +427,6 @@ macro_rules! define_variadic_struct {
         }
 
         impl<'a> $crate::VariadicStruct for $name<'a> {
-            type ItemBuilder = $item_builder_name;
-
             fn size_in_bytes(&self) -> usize {
                 match *self {
                     $($name::$type(_) => $type::SIZE_IN_BYTES),+
@@ -418,26 +434,37 @@ macro_rules! define_variadic_struct {
             }
         }
 
-        pub struct $item_builder_name {
-            data: *mut Vec<u8>
+        pub struct $item_builder_name<'a> {
+            data: &'a mut Vec<u8>
         }
 
-        impl $item_builder_name {
+        impl<'a> $item_builder_name<'a> {
             $(pub fn $add_type_fn(&mut self) -> <$type as $crate::Struct>::Mut {
-                let data = unsafe { &mut *self.data };
-                let old_len = data.len();
+                let old_len = self.data.len();
                 let increment = 1 + $type::SIZE_IN_BYTES;
-                data.resize(old_len + increment, 0);
-                data[old_len - $crate::PADDING_SIZE] = $type_index;
+                self.data.resize(old_len + increment, 0);
+                self.data[old_len - $crate::PADDING_SIZE] = $type_index;
                 <$type as $crate::Struct>::Mut::from(
-                    &mut data[1 + old_len - $crate::PADDING_SIZE] as *mut _
+                    &mut self.data[1 + old_len - $crate::PADDING_SIZE] as *mut _
                 )
             })*
         }
 
-        impl<'a> ::std::convert::From<*mut Vec<u8>> for $item_builder_name {
-            fn from(data: *mut Vec<u8>) -> Self {
-                Self { data }
+        pub struct $factory{}
+
+        impl<'a> $crate::VariadicStructFactory<'a> for $factory {
+            type Item = $name<'a>;
+
+            fn create(index : $crate::TypeIndex, data : &'a [u8]) -> Self::Item
+            {
+                $name::from((index, data.as_ptr()))
+            }
+
+            type ItemMut = $item_builder_name<'a>;
+
+            fn create_mut(data : &'a mut Vec<u8>) -> Self::ItemMut
+            {
+                $item_builder_name{data}
             }
         }
     }
@@ -883,7 +910,7 @@ mod test {
             32
         );
 
-        define_variadic_struct!(Ts, TsBuilder, IndexType32,
+        define_variadic_struct!(TsFactory, Ts, TsBuilder, IndexType32,
             0 => (A, add_a));
 
         define_archive!(SubArch, SubArchBuilder, "SubArch schema";
@@ -902,8 +929,8 @@ mod test {
             (v, set_v, start_v, AFactory, "v schema", false),
             (w, set_w, start_w, AFactory, "w schema", true);
             // multivector resources
-            (mv, start_mv, Ts, "mv schema", mv_index, IndexType32Factory, false),
-            (mw, start_mw, Ts, "mw schema", mw_index, IndexType32Factory, true);
+            (mv, start_mv, TsFactory, "mv schema", mv_index, IndexType32Factory, false),
+            (mw, start_mw, TsFactory, "mw schema", mw_index, IndexType32Factory, true);
             // raw data resources
             (r, set_r, "r schema", false),
             (s, set_s, "s schema", true);

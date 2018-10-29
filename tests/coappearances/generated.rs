@@ -476,7 +476,7 @@ define_struct!(
 );
 
 /// Builtin union type of Nickname, Description, UnaryRelation, BinaryRelation.
-define_variadic_struct!(VerticesData, VerticesDataItemBuilder,
+define_variadic_struct!(VerticesDataFactory, VerticesData, VerticesDataItemBuilder,
     IndexType32,
     0 => (Nickname, add_nickname),
     1 => (Description, add_description),
@@ -497,7 +497,7 @@ define_archive!(Graph, GraphBuilder,
         ChapterFactory, schema::resources::graph::CHAPTERS, false);
     // multivector resources
     (vertices_data, start_vertices_data,
-        VerticesData, schema::resources::graph::VERTICES_DATA,
+        VerticesDataFactory, schema::resources::graph::VERTICES_DATA,
         vertices_data_index, IndexType32Factory, false);
     // raw data resources
     (strings, set_strings,

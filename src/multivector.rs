@@ -1,4 +1,4 @@
-use archive::{Factory, IndexFactory, StructMut, VariadicStruct};
+use archive::{Factory, IndexFactory, StructMut, VariadicStruct, VariadicStructFactory};
 use memory;
 use storage::ResourceHandle;
 use vector::ExternalVector;
@@ -64,7 +64,7 @@ use std::marker;
 ///     (id, set_id, u32, 0, 16)
 /// );
 ///
-/// define_variadic_struct!(AB, ABItemBuilder, Idx,
+/// define_variadic_struct!(ABFactory, AB, ABItemBuilder, Idx,
 ///     0 => (A, add_a),
 ///     1 => (B, add_b)
 /// );
@@ -73,7 +73,7 @@ use std::marker;
 ///
 /// let mut storage = MemoryResourceStorage::new("/root/multivec".into());
 /// {
-///     let mut mv = create_multi_vector::<IdxFactory, AB>(
+///     let mut mv = create_multi_vector::<IdxFactory, ABFactory>(
 ///             &mut storage, "multivector", "some schema")
 ///         .expect("failed to create MultiVector");
 ///     {
@@ -100,7 +100,7 @@ use std::marker;
 /// let resource = storage
 ///     .read_and_check_schema("multivector", "some schema")
 ///     .expect("read_and_check_schema failed");
-/// let mv: MultiArrayView<IdxFactory, AB> = MultiArrayView::new(index, &resource.as_bytes());
+/// let mv: MultiArrayView<IdxFactory, ABFactory> = MultiArrayView::new(index, &resource.as_bytes());
 ///
 /// assert_eq!(mv.len(), 1);
 /// let mut item = mv.at(0);
@@ -129,6 +129,7 @@ use std::marker;
 pub struct MultiVector<Idx, Ts>
 where
     Idx: for<'b> IndexFactory<'b>,
+    Ts: for<'b> VariadicStructFactory<'b>,
 {
     index: ExternalVector<Idx>,
     data: Vec<u8>,
@@ -137,9 +138,10 @@ where
     _phantom: marker::PhantomData<Ts>,
 }
 
-impl<Idx, Ts: VariadicStruct> MultiVector<Idx, Ts>
+impl<Idx, Ts> MultiVector<Idx, Ts>
 where
     Idx: for<'b> IndexFactory<'b>,
+    Ts: for<'b> VariadicStructFactory<'b>,
 {
     /// Creates an empty multivector.
     pub fn new(index: ExternalVector<Idx>, data_handle: ResourceHandle) -> Self {
@@ -162,12 +164,12 @@ where
     /// may fail due to different IO reasons.
     ///
     /// [`flush`]: #method.flush
-    pub fn grow(&mut self) -> io::Result<Ts::ItemBuilder> {
+    pub fn grow(&mut self) -> io::Result<<Ts as VariadicStructFactory>::ItemMut> {
         if self.data.len() > 1024 * 1024 * 32 {
             self.flush()?;
         }
         self.add_to_index()?;
-        Ok(Ts::ItemBuilder::from(&mut self.data))
+        Ok(<Ts as VariadicStructFactory>::create_mut(&mut self.data))
     }
 
     /// Flushes the not yet flushed content in this multivector to storage.
@@ -222,6 +224,7 @@ where
 impl<Idx, Ts: VariadicStruct> fmt::Debug for MultiVector<Idx, Ts>
 where
     Idx: for<'b> IndexFactory<'b>,
+    Ts: for<'b> VariadicStructFactory<'b>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "MultiVector {{ len: {} }}", self.index.len())
@@ -250,13 +253,13 @@ mod tests {
         (y, set_y, u32, 16, 16)
     );
 
-    define_variadic_struct!(Variant, VariantItemBuilder, Idx, 0 => (A, add_a) );
+    define_variadic_struct!(VariantFactory, Variant, VariantItemBuilder, Idx, 0 => (A, add_a) );
 
     #[test]
     fn test_multi_vector() {
         let mut storage = MemoryResourceStorage::new("/root/resources".into());
         {
-            let mut mv = create_multi_vector::<IdxFactory, Variant>(
+            let mut mv = create_multi_vector::<IdxFactory, VariantFactory>(
                 &mut storage,
                 "multivector",
                 "Some schema",
@@ -289,7 +292,7 @@ mod tests {
         let resource = storage
             .read_and_check_schema("multivector", "Some schema")
             .expect("read_and_check_schema failed");
-        let mv: MultiArrayView<IdxFactory, Variant> =
+        let mv: MultiArrayView<IdxFactory, VariantFactory> =
             MultiArrayView::new(index, &resource.as_bytes());
 
         assert_eq!(mv.len(), 1);
