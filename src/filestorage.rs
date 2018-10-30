@@ -8,6 +8,7 @@ use std::fs::{self, File};
 use std::io;
 use std::path;
 use std::rc::Rc;
+use std::slice;
 
 /// Internal storage of data as files.
 #[derive(Debug, Default)]
@@ -25,8 +26,7 @@ impl MemoryMappedFileStorage {
         let data = &self.maps.borrow()[path];
         // We cannot prove to Rust that the buffer will live as long as the storage
         // (we never delete mappings), so we need to manually extend lifetime
-        let extended_lifetime_data =
-            unsafe { std::slice::from_raw_parts(data.as_ptr(), data.len()) };
+        let extended_lifetime_data = unsafe { slice::from_raw_parts(data.as_ptr(), data.len()) };
         Ok(&extended_lifetime_data)
     }
 }

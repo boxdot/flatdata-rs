@@ -126,11 +126,7 @@ use std::marker;
 /// [`ExternalVector`]: struct.ExternalVector.html
 /// [`Vector`]: struct.Vector.html
 /// [`MultiArrayView`]: struct.MultiArrayView.html
-pub struct MultiVector<Idx, Ts>
-where
-    Idx: for<'b> IndexFactory<'b>,
-    Ts: for<'b> VariadicStructFactory<'b>,
-{
+pub struct MultiVector<Idx, Ts> {
     index: ExternalVector<Idx>,
     data: Vec<u8>,
     data_handle: ResourceHandle,
@@ -208,18 +204,11 @@ where
     }
 }
 
-/*
-DOES NOT WORK WITH HRTB!
-impl<Idx, Ts> Drop for MultiVector<Idx, Ts>
-where
-    Idx: for<'b> Factory<'b>,
-    for<'b> <Idx as Factory<'b>>::Item: Index,
-{
+impl<Idx, Ts> Drop for MultiVector<Idx, Ts> {
     fn drop(&mut self) {
         debug_assert!(!self.data_handle.is_open(), "MultiVector not closed")
     }
 }
-*/
 
 impl<Idx, Ts: VariadicStruct> fmt::Debug for MultiVector<Idx, Ts>
 where

@@ -11,6 +11,7 @@ use std::mem;
 use std::ops::DerefMut;
 use std::ptr;
 use std::rc::Rc;
+use std::slice;
 use std::str;
 
 pub trait Stream: Write + Seek {}
@@ -245,7 +246,7 @@ impl MemoryDescriptor {
     /// Inherently unsafe, since there is no guarantee that the original buffer
     /// is still alive
     pub unsafe fn as_bytes(&self) -> &[u8] {
-        std::slice::from_raw_parts(self.ptr, self.size)
+        slice::from_raw_parts(self.ptr, self.size)
     }
 }
 
@@ -275,7 +276,7 @@ impl ResourceHandle {
         })
     }
 
-    /// Returns `true` is the underlying is still open for writing.
+    /// Returns `true` if the underlying is still open for writing.
     pub fn is_open(&self) -> bool {
         self.stream.is_some()
     }
