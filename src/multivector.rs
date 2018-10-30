@@ -96,11 +96,11 @@ use std::marker;
 /// let index_resource = storage
 ///     .read_and_check_schema("multivector_index", "index(some schema)")
 ///     .expect("read_and_check_schema failed");
-/// let index: ArrayView<IdxFactory> = ArrayView::new(&unsafe{index_resource.as_bytes()});
+/// let index: ArrayView<IdxFactory> = ArrayView::new(&index_resource);
 /// let resource = storage
 ///     .read_and_check_schema("multivector", "some schema")
 ///     .expect("read_and_check_schema failed");
-/// let mv: MultiArrayView<IdxFactory, ABFactory> = MultiArrayView::new(index, &unsafe{resource.as_bytes()});
+/// let mv: MultiArrayView<IdxFactory, ABFactory> = MultiArrayView::new(index, &resource);
 ///
 /// assert_eq!(mv.len(), 1);
 /// let mut item = mv.at(0);
@@ -288,12 +288,11 @@ mod tests {
         let index_resource = storage
             .read_and_check_schema("multivector_index", "index(Some schema)")
             .expect("read_and_check_schema failed");
-        let index: ArrayView<IdxFactory> = ArrayView::new(&unsafe { index_resource.as_bytes() });
+        let index: ArrayView<IdxFactory> = ArrayView::new(&index_resource);
         let resource = storage
             .read_and_check_schema("multivector", "Some schema")
             .expect("read_and_check_schema failed");
-        let mv: MultiArrayView<IdxFactory, VariantFactory> =
-            MultiArrayView::new(index, &unsafe { resource.as_bytes() });
+        let mv: MultiArrayView<IdxFactory, VariantFactory> = MultiArrayView::new(index, &resource);
 
         assert_eq!(mv.len(), 1);
         let mut item = mv.at(0);

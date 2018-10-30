@@ -27,11 +27,7 @@ pub trait ResourceStorage {
     /// Also checks if the schema matches the stored schema in the storage. The
     /// schema is expected to be stored in the storage as another resource
     /// with name `{resource_name}.schema`.
-    fn read(
-        &mut self,
-        resource_name: &str,
-        schema: &str,
-    ) -> Result<MemoryDescriptor, ResourceStorageError> {
+    fn read(&self, resource_name: &str, schema: &str) -> Result<&[u8], ResourceStorageError> {
         self.read_and_check_schema(resource_name, schema)
     }
 
@@ -40,7 +36,7 @@ pub trait ResourceStorage {
     ///
     /// The schema will be stored as another resource under the name
     /// `{resource_name}.schema`.
-    fn write(&mut self, resource_name: &str, schema: &str, data: &[u8]) -> io::Result<()> {
+    fn write(&self, resource_name: &str, schema: &str, data: &[u8]) -> io::Result<()> {
         // write data
         let stream = self.create_output_stream(resource_name)?;
         let mut mut_stream = stream.borrow_mut();
@@ -69,11 +65,11 @@ pub trait ResourceStorage {
     /// corresponding schema.
     ///
     /// [`read`]: #method.read
-    fn read_resource(&mut self, resource_name: &str) -> Result<MemoryDescriptor, io::Error>;
+    fn read_resource(&self, resource_name: &str) -> Result<&[u8], io::Error>;
 
     /// Creates a resource with given name and returns an output stream for
     /// writing to it.
-    fn create_output_stream(&mut self, resource_name: &str) -> io::Result<Rc<RefCell<Stream>>>;
+    fn create_output_stream(&self, resource_name: &str) -> io::Result<Rc<RefCell<Stream>>>;
 
     //
     // Implementation helper
@@ -90,10 +86,10 @@ pub trait ResourceStorage {
     /// [`read`]: #method.read
     /// [`read_resource`]: #tymethod.read_resource
     fn read_and_check_schema(
-        &mut self,
+        &self,
         resource_name: &str,
         expected_schema: &str,
-    ) -> Result<MemoryDescriptor, ResourceStorageError> {
+    ) -> Result<&[u8], ResourceStorageError> {
         let data = self
             .read_resource(resource_name)
             .map_err(|e| ResourceStorageError::from_io_error(e, resource_name.into()))?;
@@ -103,17 +99,17 @@ pub trait ResourceStorage {
             .read_resource(&schema_name)
             .map_err(|e| ResourceStorageError::from_io_error(e, resource_name.into()))?;
 
-        if data.size_in_bytes() < mem::size_of::<SizeType>() + PADDING_SIZE {
+        if data.len() < mem::size_of::<SizeType>() + PADDING_SIZE {
             return Err(ResourceStorageError::UnexpectedDataSize);
         }
 
-        let size = read_bytes!(SizeType, data.data()) as usize;
-        if size + mem::size_of::<SizeType>() + PADDING_SIZE != data.size_in_bytes() {
+        let size = read_bytes!(SizeType, data.as_ptr()) as usize;
+        if size + mem::size_of::<SizeType>() + PADDING_SIZE != data.len() {
             return Err(ResourceStorageError::UnexpectedDataSize);
         }
 
         // Note: len is size in bytes since we are constructing u8 slice.
-        let stored_schema_slice: &[u8] = unsafe { schema.as_bytes() };
+        let stored_schema_slice: &[u8] = schema;
         let stored_schema =
             str::from_utf8(stored_schema_slice).map_err(ResourceStorageError::Utf8Error)?;
         if stored_schema != expected_schema {
@@ -123,10 +119,7 @@ pub trait ResourceStorage {
             });
         }
 
-        Ok(MemoryDescriptor::new(
-            unsafe { data.data().offset(mem::size_of::<SizeType>() as isize) },
-            size,
-        ))
+        Ok(&data[mem::size_of::<SizeType>()..][..size])
     }
 }
 
@@ -140,7 +133,7 @@ pub trait ResourceStorage {
 /// an [`ExternalVector`] using this resource for writing and flushing data to
 /// storage.
 pub fn create_external_vector<T: for<'a> Factory<'a>>(
-    storage: &mut ResourceStorage,
+    storage: &ResourceStorage,
     resource_name: &str,
     schema: &str,
 ) -> io::Result<ExternalVector<T>> {
@@ -161,7 +154,7 @@ pub fn create_external_vector<T: for<'a> Factory<'a>>(
 /// an [`MultiVector`] using this resource for writing and flushing data to
 /// storage.
 pub fn create_multi_vector<Idx, Ts>(
-    storage: &mut ResourceStorage,
+    storage: &ResourceStorage,
     resource_name: &str,
     schema: &str,
 ) -> io::Result<MultiVector<Idx, Ts>>
@@ -212,7 +205,7 @@ pub fn create_archive<T: ArchiveBuilder>(
     }
     {
         // write empty signature and schema
-        let mut mut_storage = storage.borrow_mut();
+        let mut_storage = storage.borrow();
         mut_storage
             .write(&signature_name, T::SCHEMA, &[])
             .map_err(|e| ResourceStorageError::from_io_error(e, signature_name))?;
@@ -236,24 +229,21 @@ impl Default for MemoryDescriptor {
     }
 }
 
-/// Describes a contiguous constant chunk of memory.
+/// Describes a contiguous constant chunk of memory without tracking lifetime
+/// Used to enabling caching files retrieved from ResourceStorage without
+/// Sibling-Borrow woes
 impl MemoryDescriptor {
     /// Creates a new memory descriptor from a pointer and its size in bytes.
-    pub fn new(ptr: *const u8, size: usize) -> MemoryDescriptor {
-        MemoryDescriptor { ptr, size }
+    pub fn new(data: &[u8]) -> MemoryDescriptor {
+        MemoryDescriptor {
+            ptr: data.as_ptr(),
+            size: data.len(),
+        }
     }
 
-    /// Returns pointer to the first byte of the chunk.
-    pub fn data(&self) -> *const u8 {
-        self.ptr
-    }
-
-    /// Returns size of chunk in bytes.
-    pub fn size_in_bytes(&self) -> usize {
-        self.size
-    }
-
-    /// Converts to bytes (lifetime corresponds to the descriptor's)
+    /// Converts back to bytes (lifetime corresponds to the descriptor's)
+    /// Inherently unsafe, since there is no guarantee that the original buffer
+    /// is still alive
     pub unsafe fn as_bytes(&self) -> &[u8] {
         std::slice::from_raw_parts(self.ptr, self.size)
     }
