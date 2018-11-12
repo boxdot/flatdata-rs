@@ -259,7 +259,7 @@ where
 ///     .read_and_check_schema("vector", "Some schema content")
 ///     .expect("failed to read vector resource");
 ///
-/// let view: ArrayView<A> = ArrayView::new(&unsafe { resource.as_bytes() });
+/// let view: ArrayView<A> = ArrayView::new(&resource);
 /// assert_eq!(view.len(), 2);
 /// assert_eq!(view.at(0).x(), 0);
 /// assert_eq!(view.at(0).y(), 1);

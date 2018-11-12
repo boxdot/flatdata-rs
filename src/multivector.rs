@@ -96,11 +96,11 @@ use std::marker;
 /// let index_resource = storage
 ///     .read_and_check_schema("multivector_index", "index(some schema)")
 ///     .expect("read_and_check_schema failed");
-/// let index: ArrayView<Idx> = ArrayView::new(&unsafe{index_resource.as_bytes()});
+/// let index: ArrayView<Idx> = ArrayView::new(&index_resource);
 /// let resource = storage
 ///     .read_and_check_schema("multivector", "some schema")
 ///     .expect("read_and_check_schema failed");
-/// let mv: MultiArrayView<Idx, AB> = MultiArrayView::new(index, &unsafe{resource.as_bytes()});
+/// let mv: MultiArrayView<Idx, AB> = MultiArrayView::new(index, &resource);
 ///
 /// assert_eq!(mv.len(), 1);
 /// let mut item = mv.at(0);
@@ -126,11 +126,7 @@ use std::marker;
 /// [`ExternalVector`]: struct.ExternalVector.html
 /// [`Vector`]: struct.Vector.html
 /// [`MultiArrayView`]: struct.MultiArrayView.html
-pub struct MultiVector<Idx, Ts>
-where
-    Idx: for<'b> IndexStruct<'b>,
-    Ts: for<'b> VariadicStruct<'b>,
-{
+pub struct MultiVector<Idx, Ts> {
     index: ExternalVector<Idx>,
     data: Vec<u8>,
     data_handle: ResourceHandle,
@@ -208,18 +204,11 @@ where
     }
 }
 
-/*
-DOES NOT WORK WITH HRTB!
-impl<Idx, Ts> Drop for MultiVector<Idx, Ts>
-where
-    Idx: for<'b> Struct<'b>,
-    for<'b> <Idx as Struct<'b>>::Item: Index,
-{
+impl<Idx, Ts> Drop for MultiVector<Idx, Ts> {
     fn drop(&mut self) {
         debug_assert!(!self.data_handle.is_open(), "MultiVector not closed")
     }
 }
-*/
 
 impl<Idx, Ts: VariadicRef> fmt::Debug for MultiVector<Idx, Ts>
 where
@@ -288,12 +277,11 @@ mod tests {
         let index_resource = storage
             .read_and_check_schema("multivector_index", "index(Some schema)")
             .expect("read_and_check_schema failed");
-        let index: ArrayView<Idx> = ArrayView::new(&unsafe { index_resource.as_bytes() });
+        let index: ArrayView<Idx> = ArrayView::new(&index_resource);
         let resource = storage
             .read_and_check_schema("multivector", "Some schema")
             .expect("read_and_check_schema failed");
-        let mv: MultiArrayView<Idx, VariantFactory> =
-            MultiArrayView::new(index, &unsafe { resource.as_bytes() });
+        let mv: MultiArrayView<Idx, Variant> = MultiArrayView::new(index, &resource);
 
         assert_eq!(mv.len(), 1);
         let mut item = mv.at(0);

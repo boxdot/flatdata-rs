@@ -552,7 +552,7 @@ macro_rules! define_archive {
             where
                 R: From<$crate::MemoryDescriptor>,
             {
-                storage.read(name, schema).map(R::from)
+                storage.read(name, schema).map(|x|R::from($crate::MemoryDescriptor::new(&x)))
             }
 
             $(pub fn $struct_resource(&self) -> opt!(
