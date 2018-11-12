@@ -35,7 +35,7 @@ use error::ResourceStorageError;
 use storage::ResourceStorage;
 
 use std::cell::RefCell;
-use std::convert::From;
+
 use std::fmt::Debug;
 use std::rc::Rc;
 
@@ -44,13 +44,13 @@ pub use std::marker;
 /// A type in flatdata used for reading data.
 ///
 /// Each struct reference in generated code implements this trait.
-pub trait Ref: Clone + Debug + PartialEq + From<*const u8> {}
+pub trait Ref: Clone + Debug + PartialEq {}
 
 /// A mutable type in flatdata used for writing data.
 ///
 /// Each struct reference in generated code has a corresponding type with suffix
 /// `Mut` which implements this trait.
-pub trait RefMut: Debug + From<*mut u8> {}
+pub trait RefMut: Debug {}
 
 /// A factory trait used to bind lifetime to Ref implementations
 ///
@@ -119,7 +119,7 @@ pub type TypeIndex = u8;
 /// A type used as element of `MultiArrayView`.
 ///
 /// Implemented by an enum type.
-pub trait VariadicRef: Clone + Debug + PartialEq + From<(TypeIndex, *const u8)> {
+pub trait VariadicRef: Clone + Debug + PartialEq {
     /// Returns size in bytes of the current variant type.
     ///
     /// Since a variadic struct can contain types of different sized, this is a
@@ -244,13 +244,13 @@ macro_rules! define_struct {
             type Item = $name<'a>;
             fn create(data : &'a[u8]) -> Self::Item
             {
-                Self::Item::from(data)
+                Self::Item{ data : data.as_ptr(), _phantom : $crate::marker::PhantomData }
             }
 
             type ItemMut = $name_mut<'a>;
             fn create_mut(data: &'a mut[u8]) -> Self::ItemMut
             {
-                Self::ItemMut::from(data)
+                Self::ItemMut{ data : data.as_mut_ptr(), _phantom : $crate::marker::PhantomData }
             }
         }
 
@@ -273,18 +273,6 @@ macro_rules! define_struct {
         impl<'a> ::std::cmp::PartialEq for $name<'a> {
             fn eq(&self, other: &$name) -> bool {
                 $(self.$field() == other.$field()) && *
-            }
-        }
-
-        impl<'a> ::std::convert::From<*const u8> for $name<'a> {
-            fn from(data: *const u8) -> Self {
-                Self { data, _phantom : $crate::marker::PhantomData }
-            }
-        }
-
-        impl<'a> ::std::convert::From<&'a [u8]> for $name<'a> {
-            fn from(data: &'a[u8]) -> Self {
-                Self { data : data.as_ptr(), _phantom : $crate::marker::PhantomData }
             }
         }
 
@@ -316,18 +304,6 @@ macro_rules! define_struct {
         impl<'a> ::std::fmt::Debug for $name_mut<'a> {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 self.as_ref().fmt(f)
-            }
-        }
-
-        impl<'a> ::std::convert::From<*mut u8> for $name_mut<'a> {
-            fn from(data: *mut u8) -> Self {
-                Self { data, _phantom : $crate::marker::PhantomData }
-            }
-        }
-
-        impl<'a> ::std::convert::From<&'a mut [u8]> for $name_mut<'a> {
-            fn from(data: &'a mut[u8]) -> Self {
-                Self { data : data.as_mut_ptr(), _phantom : $crate::marker::PhantomData }
             }
         }
 
@@ -381,16 +357,6 @@ macro_rules! define_variadic_struct {
             $($type(<$type as $crate::Struct<'a>>::Item),)*
         }
 
-        impl<'a> ::std::convert::From<($crate::TypeIndex, *const u8)> for $name<'a> {
-            fn from((type_index, data): ($crate::TypeIndex, *const u8)) -> Self {
-                match type_index {
-                    $($type_index => $name::$type(<$type as $crate::Struct<'a>>::Item::from(data))),+,
-                    _ => panic!(concat!(
-                        "invalid type index {} for type ", stringify!($name)), type_index),
-                }
-            }
-        }
-
         impl<'a> ::std::fmt::Debug for $name<'a> {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 match *self {
@@ -412,13 +378,13 @@ macro_rules! define_variadic_struct {
         }
 
         impl<'a> $item_builder_name<'a> {
-            $(pub fn $add_type_fn(&mut self) -> <$type as $crate::Struct<'a>>::ItemMut {
+            $(pub fn $add_type_fn<'b>(&'b mut self) -> <$type as $crate::Struct<'b>>::ItemMut {
                 let old_len = self.data.len();
-                let increment = 1 + <$type as $crate::Struct<'a>>::SIZE_IN_BYTES;
+                let increment = 1 + <$type as $crate::Struct<'b>>::SIZE_IN_BYTES;
                 self.data.resize(old_len + increment, 0);
                 self.data[old_len - $crate::PADDING_SIZE] = $type_index;
-                <$type as $crate::Struct<'a>>::ItemMut::from(
-                    &mut self.data[1 + old_len - $crate::PADDING_SIZE] as *mut _
+                <$type as $crate::Struct<'b>>::create_mut(
+                    &mut self.data[1 + old_len - $crate::PADDING_SIZE..]
                 )
             })*
         }
@@ -430,7 +396,11 @@ macro_rules! define_variadic_struct {
 
             fn create(index : $crate::TypeIndex, data : &'a [u8]) -> Self::Item
             {
-                $name::from((index, data.as_ptr()))
+                match index {
+                    $($type_index => $name::$type(<$type as $crate::Struct<'a>>::create(data))),+,
+                    _ => panic!(concat!(
+                        "invalid type index {} for type ", stringify!($name)), index),
+                }
             }
 
             type ItemMut = $item_builder_name<'a>;
