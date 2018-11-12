@@ -1,7 +1,7 @@
 // Note: This module is called `structbuf` in contrast to `struct` in the C++
 // implementation, since Rust does not allow module names to be one of the
 // language keywords.
-use archive::{Factory, Struct};
+use archive::{Ref, Struct};
 use memory;
 
 use std::fmt;
@@ -25,16 +25,16 @@ use std::marker;
 /// use flatdata::StructBuf;
 ///
 /// define_struct!(
-///     AFactory,
 ///     A,
-///     AMut,
+///     RefA,
+///     RefMutA,
 ///     "no_schema",
 ///     4,
 ///     (x, set_x, u32, 0, 16),
 ///     (y, set_y, u32, 16, 16)
 /// );
 ///
-/// let mut a = StructBuf::<AFactory>::new();
+/// let mut a = StructBuf::<A>::new();
 /// a.get_mut().set_x(1);
 /// a.get_mut().set_y(2);
 /// assert_eq!(a.get().x(), 1);
@@ -46,7 +46,7 @@ use std::marker;
 /// [coappearances]: https://github.com/boxdot/flatdata-rs/blob/master/tests/coappearances_test.rs#L183
 pub struct StructBuf<T>
 where
-    T: for<'a> Factory<'a>,
+    T: for<'a> Struct<'a>,
 {
     data: Vec<u8>,
     _phantom: marker::PhantomData<T>,
@@ -54,13 +54,13 @@ where
 
 impl<T> StructBuf<T>
 where
-    T: for<'a> Factory<'a>,
+    T: for<'a> Struct<'a>,
 {
     /// Creates an empty struct buffer.
     ///
     /// All fields are set to 0.
     pub fn new() -> Self {
-        let data = vec![0; <T as Factory>::Item::SIZE_IN_BYTES + memory::PADDING_SIZE];
+        let data = vec![0; <T as Struct>::Item::SIZE_IN_BYTES + memory::PADDING_SIZE];
         Self {
             data,
             _phantom: marker::PhantomData,
@@ -68,24 +68,24 @@ where
     }
 
     /// Get the stored object
-    pub fn get(&self) -> <T as Factory>::Item {
-        <T as Factory>::create(&self.data)
+    pub fn get(&self) -> <T as Struct>::Item {
+        <T as Struct>::create(&self.data)
     }
 
     /// Get the mutable version of the stored object
-    pub fn get_mut(&mut self) -> <T as Factory>::ItemMut {
-        <T as Factory>::create_mut(&mut self.data)
+    pub fn get_mut(&mut self) -> <T as Struct>::ItemMut {
+        <T as Struct>::create_mut(&mut self.data)
     }
 
     /// Returns a raw bytes representation of the buffer.
     pub fn as_bytes(&self) -> &[u8] {
-        &self.data[0..<T as Factory>::Item::SIZE_IN_BYTES]
+        &self.data[0..<T as Struct>::Item::SIZE_IN_BYTES]
     }
 }
 
 impl<T> fmt::Debug for StructBuf<T>
 where
-    T: for<'a> Factory<'a>,
+    T: for<'a> Struct<'a>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "StructBuf {{ resource: {:?} }}", self.get())
@@ -94,7 +94,7 @@ where
 
 impl<T> Default for StructBuf<T>
 where
-    T: for<'a> Factory<'a>,
+    T: for<'a> Struct<'a>,
 {
     fn default() -> Self {
         Self::new()
@@ -103,7 +103,7 @@ where
 
 impl<T> AsRef<[u8]> for StructBuf<T>
 where
-    T: for<'a> Factory<'a>,
+    T: for<'a> Struct<'a>,
 {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
@@ -116,9 +116,9 @@ mod test {
     use super::*;
 
     define_struct!(
-        AFactory,
         A,
-        AMut,
+        RefA,
+        RefMutA,
         "no_schema",
         4,
         (x, set_x, u32, 0, 16),
@@ -127,14 +127,14 @@ mod test {
 
     #[test]
     fn test_new() {
-        let a = StructBuf::<AFactory>::new();
-        let b = StructBuf::<AFactory>::default();
+        let a = StructBuf::<A>::new();
+        let b = StructBuf::<A>::default();
         assert_eq!(a.get(), b.get());
     }
 
     #[test]
     fn test_setter_getter() {
-        let mut a = StructBuf::<AFactory>::new();
+        let mut a = StructBuf::<A>::new();
         a.get_mut().set_x(1);
         a.get_mut().set_y(2);
         assert_eq!(a.get().x(), 1);

@@ -101,7 +101,7 @@ fn read_and_validate_coappearances() {
     let data: Vec<_> = vertices_data.at(0).collect();
     assert_eq!(data.len(), 1);
     match data[0] {
-        coappearances::VerticesData::UnaryRelation(ref data) => {
+        coappearances::RefVerticesData::RefUnaryRelation(ref data) => {
             assert_eq!(substring(strings, data.kind_ref()), "maid");
             assert_eq!(
                 substring(strings, vertices.at(data.to_ref() as usize).name_ref()),
@@ -114,7 +114,7 @@ fn read_and_validate_coappearances() {
     let data: Vec<_> = vertices_data.at(1).collect();
     assert_eq!(data.len(), 1);
     match data[0] {
-        coappearances::VerticesData::UnaryRelation(ref data) => {
+        coappearances::RefVerticesData::RefUnaryRelation(ref data) => {
             assert_eq!(substring(strings, data.kind_ref()), "housekeeper");
             assert_eq!(
                 substring(strings, vertices.at(data.to_ref() as usize).name_ref()),
@@ -127,7 +127,7 @@ fn read_and_validate_coappearances() {
     let data: Vec<_> = vertices_data.at(vertices_data.len() - 1).collect();
     assert_eq!(data.len(), 1);
     match data[0] {
-        coappearances::VerticesData::UnaryRelation(ref data) => {
+        coappearances::RefVerticesData::RefUnaryRelation(ref data) => {
             assert_eq!(substring(strings, data.kind_ref()), "gambling friend");
             assert_eq!(
                 substring(strings, vertices.at(data.to_ref() as usize).name_ref()),
@@ -182,7 +182,7 @@ fn copy_coappearances_archive(
     let mut gb = coappearances::GraphBuilder::new(storage).expect("could not create archive");
 
     // copy data
-    let mut meta = flatdata::StructBuf::<coappearances::MetaFactory>::new();
+    let mut meta = flatdata::StructBuf::<coappearances::Meta>::new();
     meta.get_mut().fill_from(&g.meta());
     gb.set_meta(meta.get()).expect("set_meta failed");
     assert!(compare_resource(
@@ -203,7 +203,7 @@ fn copy_coappearances_archive(
         "vertices"
     ));
 
-    let mut edges = flatdata::Vector::<coappearances::CoappearanceFactory>::new();
+    let mut edges = flatdata::Vector::<coappearances::Coappearance>::new();
     for e in g.edges().iter() {
         edges.grow().fill_from(&e);
     }
@@ -222,19 +222,19 @@ fn copy_coappearances_archive(
         let mut new_item = vertices_data.grow().expect("grow failed");
         for element in item {
             match element {
-                coappearances::VerticesData::Nickname(ref nickname) => {
+                coappearances::RefVerticesData::RefNickname(ref nickname) => {
                     let mut new_element = new_item.add_nickname();
                     new_element.fill_from(nickname);
                 }
-                coappearances::VerticesData::Description(ref desc) => {
+                coappearances::RefVerticesData::RefDescription(ref desc) => {
                     let mut new_element = new_item.add_description();
                     new_element.fill_from(desc);
                 }
-                coappearances::VerticesData::UnaryRelation(ref rel) => {
+                coappearances::RefVerticesData::RefUnaryRelation(ref rel) => {
                     let mut new_element = new_item.add_unary_relation();
                     new_element.fill_from(rel);
                 }
-                coappearances::VerticesData::BinaryRelation(ref rel) => {
+                coappearances::RefVerticesData::RefBinaryRelation(ref rel) => {
                     let mut new_element = new_item.add_binary_relation();
                     new_element.fill_from(rel);
                 }
@@ -254,7 +254,7 @@ fn copy_coappearances_archive(
         "vertices_data_index"
     ));
 
-    let mut chapters = flatdata::Vector::<coappearances::ChapterFactory>::new();
+    let mut chapters = flatdata::Vector::<coappearances::Chapter>::new();
     for ch in g.chapters().iter() {
         chapters.grow().fill_from(&ch);
     }
@@ -307,7 +307,7 @@ fn read_write_statistics_subarchive() {
     );
 
     let mut builder = gb.statistics().expect("statistics failed");
-    let mut inv_buf = flatdata::StructBuf::<coappearances::InvariantsFactory>::new();
+    let mut inv_buf = flatdata::StructBuf::<coappearances::Invariants>::new();
     {
         let mut inv = inv_buf.get_mut();
         inv.set_max_degree(71);

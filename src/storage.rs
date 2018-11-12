@@ -1,4 +1,4 @@
-use archive::{ArchiveBuilder, Factory, IndexFactory, VariadicStructFactory};
+use archive::{ArchiveBuilder, IndexStruct, Struct, VariadicStruct};
 use error::ResourceStorageError;
 use memory::{SizeType, PADDING_SIZE};
 use multivector::MultiVector;
@@ -112,7 +112,6 @@ pub trait ResourceStorage {
             return Err(ResourceStorageError::UnexpectedDataSize);
         }
 
-        // Note: len is size in bytes since we are constructing u8 slice.
         let stored_schema_slice: &[u8] = unsafe { schema.as_bytes() };
         let stored_schema =
             str::from_utf8(stored_schema_slice).map_err(ResourceStorageError::Utf8Error)?;
@@ -139,7 +138,7 @@ pub trait ResourceStorage {
 /// Creates a new resource with given name and schema in storage, and returns
 /// an [`ExternalVector`] using this resource for writing and flushing data to
 /// storage.
-pub fn create_external_vector<T: for<'a> Factory<'a>>(
+pub fn create_external_vector<T: for<'a> Struct<'a>>(
     storage: &mut ResourceStorage,
     resource_name: &str,
     schema: &str,
@@ -166,8 +165,8 @@ pub fn create_multi_vector<Idx, Ts>(
     schema: &str,
 ) -> io::Result<MultiVector<Idx, Ts>>
 where
-    Idx: for<'b> IndexFactory<'b>,
-    Ts: for<'b> VariadicStructFactory<'b>,
+    Idx: for<'b> IndexStruct<'b>,
+    Ts: for<'b> VariadicStruct<'b>,
 {
     // create index
     let index_name = format!("{}_index", resource_name);

@@ -1,4 +1,4 @@
-use archive::{Factory, Struct};
+use archive::{Ref, Struct};
 use arrayview::ArrayView;
 
 use memory;
@@ -30,16 +30,16 @@ use std::marker;
 /// use flatdata::Vector;
 ///
 /// define_struct!(
-///     AFactory,
 ///     A,
-///     AMut,
+///     RefA,
+///     RefMutA,
 ///     "no_schema",
 ///     4,
 ///     (x, set_x, u32, 0, 16),
 ///     (y, set_y, u32, 16, 16)
 /// );
 ///
-/// let mut v: Vector<AFactory> = Vector::new();
+/// let mut v: Vector<A> = Vector::new();
 /// {
 ///     let mut a = v.grow();
 ///     a.set_x(1);
@@ -67,7 +67,7 @@ pub struct Vector<T> {
 
 impl<T> Vector<T>
 where
-    T: for<'b> Factory<'b>,
+    T: for<'b> Struct<'b>,
 {
     /// Creates an empty `Vector<T>`.
     #[inline]
@@ -98,7 +98,7 @@ where
     /// Number of elements in the vector.
     #[inline]
     pub fn len(&self) -> usize {
-        self.size_in_bytes() / <T as Factory>::Item::SIZE_IN_BYTES
+        self.size_in_bytes() / <T as Struct>::Item::SIZE_IN_BYTES
     }
 
     /// Returns `true` if the vector has a length 0.
@@ -133,39 +133,39 @@ where
     /// Appends an element to the end of this vector and returns a mutable
     /// handle to it.
     #[inline]
-    pub fn grow(&mut self) -> <T as Factory>::ItemMut {
+    pub fn grow(&mut self) -> <T as Struct>::ItemMut {
         let old_size = self.data.len();
         self.data
-            .resize(old_size + <T as Factory>::Item::SIZE_IN_BYTES, 0);
+            .resize(old_size + <T as Struct>::Item::SIZE_IN_BYTES, 0);
         let last_index = self.len() - 1;
-        T::create_mut(&mut self.data[last_index * <T as Factory>::Item::SIZE_IN_BYTES..])
+        T::create_mut(&mut self.data[last_index * <T as Struct>::Item::SIZE_IN_BYTES..])
     }
 
     /// Return an accessor handle to the element at position `index` in the
     /// vector.
     #[inline]
-    pub fn at(&self, index: usize) -> <T as Factory>::Item {
-        T::create(&self.data[index * <T as Factory>::Item::SIZE_IN_BYTES..])
+    pub fn at(&self, index: usize) -> <T as Struct>::Item {
+        T::create(&self.data[index * <T as Struct>::Item::SIZE_IN_BYTES..])
     }
 
     /// Return a mutable handle to the element at position `index` in the
     /// vector.
     #[inline]
-    pub fn at_mut(&mut self, index: usize) -> <T as Factory>::ItemMut {
-        T::create_mut(&mut self.data[index * <T as Factory>::Item::SIZE_IN_BYTES..])
+    pub fn at_mut(&mut self, index: usize) -> <T as Struct>::ItemMut {
+        T::create_mut(&mut self.data[index * <T as Struct>::Item::SIZE_IN_BYTES..])
     }
 
     /// Calculates size in bytes (with padding) needed to store `len` many
     /// elements.
     #[inline]
     fn calc_size(len: usize) -> usize {
-        len * <T as Factory>::Item::SIZE_IN_BYTES + memory::PADDING_SIZE
+        len * <T as Struct>::Item::SIZE_IN_BYTES + memory::PADDING_SIZE
     }
 }
 
 impl<T> Default for Vector<T>
 where
-    T: for<'b> Factory<'b>,
+    T: for<'b> Struct<'b>,
 {
     /// Creates an empty `Vector<T>`.
     fn default() -> Self {
@@ -175,7 +175,7 @@ where
 
 impl<T> AsRef<[u8]> for Vector<T>
 where
-    T: for<'b> Factory<'b>,
+    T: for<'b> Struct<'b>,
 {
     /// Returns the content of this vector as slice of bytes. Equivalent to
     /// [`as_bytes`].
@@ -188,7 +188,7 @@ where
 
 impl<T> fmt::Debug for Vector<T>
 where
-    T: for<'b> Factory<'b>,
+    T: for<'b> Struct<'b>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let view = self.as_view();
@@ -229,9 +229,9 @@ where
 /// };
 ///
 /// define_struct!(
-///     AFactory,
 ///     A,
-///     AMut,
+///     RefA,
+///     RefMutA,
 ///     "no_schema",
 ///     4,
 ///     (x, set_x, u32, 0, 16),
@@ -240,9 +240,8 @@ where
 ///
 /// let mut storage = MemoryResourceStorage::new("/root/extvec".into());
 /// {
-///     let mut v =
-///         create_external_vector::<AFactory>(&mut storage, "vector", "Some schema content")
-///             .expect("failed to create ExternalVector");
+///     let mut v = create_external_vector::<A>(&mut storage, "vector", "Some schema content")
+///         .expect("failed to create ExternalVector");
 ///     {
 ///         let mut a = v.grow().expect("grow failed");
 ///         a.set_x(0);
@@ -260,7 +259,7 @@ where
 ///     .read_and_check_schema("vector", "Some schema content")
 ///     .expect("failed to read vector resource");
 ///
-/// let view: ArrayView<AFactory> = ArrayView::new(&unsafe { resource.as_bytes() });
+/// let view: ArrayView<A> = ArrayView::new(&unsafe { resource.as_bytes() });
 /// assert_eq!(view.len(), 2);
 /// assert_eq!(view.at(0).x(), 0);
 /// assert_eq!(view.at(0).y(), 1);
@@ -280,7 +279,7 @@ pub struct ExternalVector<T> {
 
 impl<T> ExternalVector<T>
 where
-    T: for<'b> Factory<'b>,
+    T: for<'b> Struct<'b>,
 {
     /// Creates an empty `ExternalVector<T>` in the given resource storage.
     pub fn new(resource_handle: ResourceHandle) -> Self {
@@ -309,13 +308,13 @@ where
     /// may fail due to different IO reasons.
     ///
     /// [`flush`]: #method.flush
-    pub fn grow(&mut self) -> io::Result<<T as Factory>::ItemMut> {
+    pub fn grow(&mut self) -> io::Result<<T as Struct>::ItemMut> {
         if self.data.len() > 1024 * 1024 * 32 {
             self.flush()?;
         }
         let old_size = self.data.len();
         self.data
-            .resize(old_size + <T as Factory>::Item::SIZE_IN_BYTES, 0);
+            .resize(old_size + <T as Struct>::Item::SIZE_IN_BYTES, 0);
         self.len += 1;
         Ok(T::create_mut(
             &mut self.data[old_size - memory::PADDING_SIZE..],
@@ -358,7 +357,7 @@ impl<T> Drop for ExternalVector<T> {
 
 impl<T> fmt::Debug for ExternalVector<T>
 where
-    T: for<'b> Factory<'b>,
+    T: for<'b> Struct<'b>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ExternalVector {{ len: {} }}", self.len())
@@ -373,9 +372,9 @@ mod tests {
     use super::*;
 
     define_struct!(
-        AFactory,
         A,
-        AMut,
+        RefA,
+        RefMutA,
         "no_schema",
         4,
         (x, set_x, u32, 0, 16),
@@ -384,13 +383,13 @@ mod tests {
 
     #[test]
     fn test_vector_new() {
-        let v: Vector<AFactory> = Vector::new();
+        let v: Vector<A> = Vector::new();
         assert_eq!(v.len(), 0);
     }
 
     #[test]
     fn test_vector_index() {
-        let mut v: Vector<AFactory> = Vector::with_len(2);
+        let mut v: Vector<A> = Vector::with_len(2);
         assert_eq!(v.len(), 2);
         {
             let mut a = v.at_mut(0);
@@ -416,7 +415,7 @@ mod tests {
 
     #[test]
     fn test_vector_as_view() {
-        let mut v: Vector<AFactory> = Vector::with_len(1);
+        let mut v: Vector<A> = Vector::with_len(1);
         assert_eq!(v.len(), 1);
         {
             let mut a = v.at_mut(0);
@@ -433,7 +432,7 @@ mod tests {
 
     #[test]
     fn test_vector_grow() {
-        let mut v: Vector<AFactory> = Vector::with_len(1);
+        let mut v: Vector<A> = Vector::with_len(1);
         assert_eq!(v.len(), 1);
         {
             let mut a = v.at_mut(0);

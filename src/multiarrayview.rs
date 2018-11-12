@@ -1,4 +1,4 @@
-use archive::{IndexFactory, VariadicStruct, VariadicStructFactory};
+use archive::{IndexStruct, VariadicRef, VariadicStruct};
 use arrayview::ArrayView;
 
 use std::fmt;
@@ -14,8 +14,8 @@ use std::marker;
 #[derive(Clone)]
 pub struct MultiArrayView<'a, Idx, Ts>
 where
-    Idx: for<'b> IndexFactory<'b>,
-    Ts: for<'b> VariadicStructFactory<'b>,
+    Idx: for<'b> IndexStruct<'b>,
+    Ts: for<'b> VariadicStruct<'b>,
 {
     index: ArrayView<'a, Idx>,
     data: &'a [u8],
@@ -24,8 +24,8 @@ where
 
 impl<'a, Idx, Ts> MultiArrayView<'a, Idx, Ts>
 where
-    Idx: for<'b> IndexFactory<'b>,
-    Ts: for<'b> VariadicStructFactory<'b>,
+    Idx: for<'b> IndexStruct<'b>,
+    Ts: for<'b> VariadicStruct<'b>,
 {
     /// Creates a new `MultiArrayView` to the data at the given address.
     ///
@@ -59,8 +59,8 @@ where
     ///
     /// Panics if index is greater than or equal to `MultiArrayView::len()`.
     pub fn at(&self, index: usize) -> MultiArrayViewItemIter<'a, Ts> {
-        let start = <Idx as IndexFactory>::index(self.index.at(index));
-        let end = <Idx as IndexFactory>::index(self.index.at(index + 1));
+        let start = <Idx as IndexStruct>::index(self.index.at(index));
+        let end = <Idx as IndexStruct>::index(self.index.at(index + 1));
         MultiArrayViewItemIter {
             data: &self.data[start..end],
             _phantom: marker::PhantomData,
@@ -82,7 +82,7 @@ where
 #[derive(Debug, Clone)]
 pub struct MultiArrayViewItemIter<'a, Ts: 'a>
 where
-    Ts: for<'b> VariadicStructFactory<'b>,
+    Ts: for<'b> VariadicStruct<'b>,
 {
     data: &'a [u8],
     _phantom: marker::PhantomData<&'a Ts>,
@@ -90,14 +90,14 @@ where
 
 impl<'a, Ts> iter::Iterator for MultiArrayViewItemIter<'a, Ts>
 where
-    Ts: for<'b> VariadicStructFactory<'b>,
+    Ts: for<'b> VariadicStruct<'b>,
 {
-    type Item = <Ts as VariadicStructFactory<'a>>::Item;
+    type Item = <Ts as VariadicStruct<'a>>::Item;
     fn next(&mut self) -> Option<Self::Item> {
         if self.data.len() > 0 {
             let type_index = self.data[0];
             self.data = &self.data[1..];
-            let res = <Ts as VariadicStructFactory>::create(type_index, &self.data);
+            let res = <Ts as VariadicStruct>::create(type_index, &self.data);
             self.data = &self.data[res.size_in_bytes()..];
             Some(res)
         } else {
@@ -108,8 +108,8 @@ where
 
 impl<'a, Idx, Ts> fmt::Debug for MultiArrayView<'a, Idx, Ts>
 where
-    Idx: for<'b> IndexFactory<'b>,
-    Ts: for<'b> VariadicStructFactory<'b>,
+    Idx: for<'b> IndexStruct<'b>,
+    Ts: for<'b> VariadicStruct<'b>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let preview: Vec<(usize, Vec<_>)> = self
@@ -136,8 +136,8 @@ where
 #[derive(Debug, Clone)]
 pub struct MultiArrayViewIter<'a, Idx: 'a, Ts: 'a>
 where
-    Idx: for<'b> IndexFactory<'b>,
-    Ts: for<'b> VariadicStructFactory<'b>,
+    Idx: for<'b> IndexStruct<'b>,
+    Ts: for<'b> VariadicStruct<'b>,
 {
     view: &'a MultiArrayView<'a, Idx, Ts>,
     next_pos: usize,
@@ -145,8 +145,8 @@ where
 
 impl<'a, Idx, Ts> iter::Iterator for MultiArrayViewIter<'a, Idx, Ts>
 where
-    Idx: for<'b> IndexFactory<'b>,
-    Ts: for<'b> VariadicStructFactory<'b>,
+    Idx: for<'b> IndexStruct<'b>,
+    Ts: for<'b> VariadicStruct<'b>,
 {
     type Item = MultiArrayViewItemIter<'a, Ts>;
     fn next(&mut self) -> Option<Self::Item> {
@@ -162,8 +162,8 @@ where
 
 impl<'a, Idx, Ts> iter::ExactSizeIterator for MultiArrayViewIter<'a, Idx, Ts>
 where
-    Idx: for<'b> IndexFactory<'b>,
-    Ts: for<'b> VariadicStructFactory<'b>,
+    Idx: for<'b> IndexStruct<'b>,
+    Ts: for<'b> VariadicStruct<'b>,
 {
     fn len(&self) -> usize {
         self.view.len()
