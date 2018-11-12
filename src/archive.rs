@@ -45,8 +45,6 @@ pub use std::marker;
 ///
 /// Each struct reference in generated code implements this trait.
 pub trait Ref: Clone + Debug + PartialEq + From<*const u8> {
-    /// Corresponding mutable type used for writing data.
-    type Mut: RefMut + AsRef<Self>;
     /// Raw pointer to the data.
     fn as_ptr(&self) -> *const u8;
 }
@@ -56,10 +54,8 @@ pub trait Ref: Clone + Debug + PartialEq + From<*const u8> {
 /// Each struct reference in generated code has a corresponding type with suffix
 /// `Mut` which implements this trait.
 pub trait RefMut: Debug + From<*mut u8> {
-    /// Corresponding mutable type used for reading data.
-    type Const: Ref;
-    /// Raw pointer to the mutable data.
-    fn as_mut_ptr(&mut self) -> *mut u8;
+    /// Raw pointer to the data.
+    fn as_ptr(&self) -> *const u8;
 }
 
 /// A factory trait used to bind lifetime to Ref implementations
@@ -299,8 +295,6 @@ macro_rules! define_struct {
         }
 
         impl<'a> $crate::Ref for $name<'a> {
-            type Mut = $name_mut<'a>;
-
             fn as_ptr(&self) -> *const u8 {
                 self.data
             }
@@ -348,9 +342,7 @@ macro_rules! define_struct {
         }
 
         impl<'a> $crate::RefMut for $name_mut<'a> {
-            type Const = $name<'a>;
-
-            fn as_mut_ptr(&mut self) -> *mut u8 {
+            fn as_ptr(&self) -> *const u8 {
                 self.data
             }
         }

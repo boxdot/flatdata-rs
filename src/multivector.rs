@@ -1,4 +1,4 @@
-use archive::{IndexStruct, RefMut, Struct, VariadicRef, VariadicStruct};
+use archive::{IndexStruct, VariadicRef, VariadicStruct};
 use memory;
 use storage::ResourceHandle;
 use vector::ExternalVector;
@@ -182,7 +182,7 @@ where
     }
 
     fn add_to_index(&mut self) -> io::Result<()> {
-        let idx_mut = <Idx as Struct>::ItemMut::from(self.index.grow()?.as_mut_ptr());
+        let idx_mut = self.index.grow()?;
         <Idx as IndexStruct>::set_index(
             idx_mut,
             self.size_flushed + self.data.len() - memory::PADDING_SIZE,
