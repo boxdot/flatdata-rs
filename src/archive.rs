@@ -45,10 +45,6 @@ pub use std::marker;
 ///
 /// Each struct reference in generated code implements this trait.
 pub trait Ref: Clone + Debug + PartialEq + From<*const u8> {
-    /// Schema of the type. Used only for debug and inspection purposes.
-    const SCHEMA: &'static str;
-    /// Size of an object of this type in bytes.
-    const SIZE_IN_BYTES: usize;
     /// Corresponding mutable type used for writing data.
     type Mut: RefMut + AsRef<Self>;
     /// Raw pointer to the data.
@@ -303,9 +299,6 @@ macro_rules! define_struct {
         }
 
         impl<'a> $crate::Ref for $name<'a> {
-            const SCHEMA: &'static str = $schema;
-            const SIZE_IN_BYTES: usize = $size_in_bytes;
-
             type Mut = $name_mut<'a>;
 
             fn as_ptr(&self) -> *const u8 {
@@ -731,7 +724,7 @@ macro_rules! define_archive {
                 resource: <$struct_type as $crate::Struct>::Item,
             ) -> ::std::io::Result<()> {
                 let data = unsafe {
-                    ::std::slice::from_raw_parts(resource.data, <$struct_type as $crate::Struct>::Item::SIZE_IN_BYTES)
+                    ::std::slice::from_raw_parts(resource.data, <$struct_type as $crate::Struct>::SIZE_IN_BYTES)
                 };
                 self.storage
                     .borrow_mut()

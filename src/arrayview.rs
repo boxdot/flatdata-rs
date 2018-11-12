@@ -1,4 +1,4 @@
-use archive::{Ref, Struct};
+use archive::Struct;
 
 use std::fmt;
 use std::iter;
@@ -72,7 +72,7 @@ where
 
     /// Number of elements in the array.
     pub fn len(&self) -> usize {
-        self.data.len() / <T as Struct>::Item::SIZE_IN_BYTES
+        self.data.len() / <T as Struct>::SIZE_IN_BYTES
     }
 
     /// Return `true` if the array is empty.
@@ -87,8 +87,8 @@ where
     ///
     /// Panics if index is greater than or equal to `ArrayView::len()`.
     pub fn at(&self, index: usize) -> <T as Struct>::Item {
-        let index = index * <T as Struct>::Item::SIZE_IN_BYTES;
-        assert!(index + <T as Struct>::Item::SIZE_IN_BYTES <= self.data.len());
+        let index = index * <T as Struct>::SIZE_IN_BYTES;
+        assert!(index + <T as Struct>::SIZE_IN_BYTES <= self.data.len());
         T::create(&self.data[index..])
     }
 
@@ -195,7 +195,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use archive::Ref;
+    use archive::Struct;
     use memory;
 
     #[test]
@@ -212,7 +212,7 @@ mod test {
         );
 
         let mut buffer = vec![255_u8; 4];
-        buffer.extend(vec![0_u8; RefA::SIZE_IN_BYTES * 10 + memory::PADDING_SIZE]);
+        buffer.extend(vec![0_u8; A::SIZE_IN_BYTES * 10 + memory::PADDING_SIZE]);
         let data = &buffer[..buffer.len() - memory::PADDING_SIZE];
         let view: super::ArrayView<A> = super::ArrayView::new(&data);
         assert_eq!(11, view.len());

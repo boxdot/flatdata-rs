@@ -1,4 +1,4 @@
-use archive::{Ref, Struct};
+use archive::Struct;
 use arrayview::ArrayView;
 
 use memory;
@@ -98,7 +98,7 @@ where
     /// Number of elements in the vector.
     #[inline]
     pub fn len(&self) -> usize {
-        self.size_in_bytes() / <T as Struct>::Item::SIZE_IN_BYTES
+        self.size_in_bytes() / <T as Struct>::SIZE_IN_BYTES
     }
 
     /// Returns `true` if the vector has a length 0.
@@ -135,31 +135,30 @@ where
     #[inline]
     pub fn grow(&mut self) -> <T as Struct>::ItemMut {
         let old_size = self.data.len();
-        self.data
-            .resize(old_size + <T as Struct>::Item::SIZE_IN_BYTES, 0);
+        self.data.resize(old_size + <T as Struct>::SIZE_IN_BYTES, 0);
         let last_index = self.len() - 1;
-        T::create_mut(&mut self.data[last_index * <T as Struct>::Item::SIZE_IN_BYTES..])
+        T::create_mut(&mut self.data[last_index * <T as Struct>::SIZE_IN_BYTES..])
     }
 
     /// Return an accessor handle to the element at position `index` in the
     /// vector.
     #[inline]
     pub fn at(&self, index: usize) -> <T as Struct>::Item {
-        T::create(&self.data[index * <T as Struct>::Item::SIZE_IN_BYTES..])
+        T::create(&self.data[index * <T as Struct>::SIZE_IN_BYTES..])
     }
 
     /// Return a mutable handle to the element at position `index` in the
     /// vector.
     #[inline]
     pub fn at_mut(&mut self, index: usize) -> <T as Struct>::ItemMut {
-        T::create_mut(&mut self.data[index * <T as Struct>::Item::SIZE_IN_BYTES..])
+        T::create_mut(&mut self.data[index * <T as Struct>::SIZE_IN_BYTES..])
     }
 
     /// Calculates size in bytes (with padding) needed to store `len` many
     /// elements.
     #[inline]
     fn calc_size(len: usize) -> usize {
-        len * <T as Struct>::Item::SIZE_IN_BYTES + memory::PADDING_SIZE
+        len * <T as Struct>::SIZE_IN_BYTES + memory::PADDING_SIZE
     }
 }
 
@@ -313,8 +312,7 @@ where
             self.flush()?;
         }
         let old_size = self.data.len();
-        self.data
-            .resize(old_size + <T as Struct>::Item::SIZE_IN_BYTES, 0);
+        self.data.resize(old_size + <T as Struct>::SIZE_IN_BYTES, 0);
         self.len += 1;
         Ok(T::create_mut(
             &mut self.data[old_size - memory::PADDING_SIZE..],

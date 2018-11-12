@@ -1,7 +1,7 @@
 // Note: This module is called `structbuf` in contrast to `struct` in the C++
 // implementation, since Rust does not allow module names to be one of the
 // language keywords.
-use archive::{Ref, Struct};
+use archive::Struct;
 use memory;
 
 use std::fmt;
@@ -60,7 +60,7 @@ where
     ///
     /// All fields are set to 0.
     pub fn new() -> Self {
-        let data = vec![0; <T as Struct>::Item::SIZE_IN_BYTES + memory::PADDING_SIZE];
+        let data = vec![0; <T as Struct>::SIZE_IN_BYTES + memory::PADDING_SIZE];
         Self {
             data,
             _phantom: marker::PhantomData,
@@ -79,7 +79,7 @@ where
 
     /// Returns a raw bytes representation of the buffer.
     pub fn as_bytes(&self) -> &[u8] {
-        &self.data[0..<T as Struct>::Item::SIZE_IN_BYTES]
+        &self.data[0..<T as Struct>::SIZE_IN_BYTES]
     }
 }
 
