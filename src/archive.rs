@@ -72,6 +72,11 @@ pub trait RefMut: Debug + From<*mut u8> {
 /// structs since that binds lifetime too early. Instead this generic factory
 /// and Higher-Rank-Trait-Bounds are used to emulate higher-kinded-generics
 pub trait Struct<'a> {
+    /// Schema of the type. Used only for debug and inspection purposes.
+    const SCHEMA: &'static str;
+    /// Size of an object of this type in bytes.
+    const SIZE_IN_BYTES: usize;
+
     /// Item this factory will produce
     type Item: Ref;
 
@@ -247,6 +252,9 @@ macro_rules! define_struct {
 
         impl<'a> $crate::Struct<'a> for $factory
         {
+            const SCHEMA: &'static str = $schema;
+            const SIZE_IN_BYTES: usize = $size_in_bytes;
+
             type Item = $name<'a>;
             fn create(data : &'a[u8]) -> Self::Item
             {
@@ -399,13 +407,13 @@ macro_rules! define_variadic_struct {
     {
         #[derive(Clone, PartialEq)]
         pub enum $name<'a> {
-            $($type($type<'a>),)*
+            $($type(<$type as $crate::Struct<'a>>::Item),)*
         }
 
         impl<'a> ::std::convert::From<($crate::TypeIndex, *const u8)> for $name<'a> {
             fn from((type_index, data): ($crate::TypeIndex, *const u8)) -> Self {
                 match type_index {
-                    $($type_index => $name::$type($type::from(data))),+,
+                    $($type_index => $name::$type(<$type as $crate::Struct<'a>>::Item::from(data))),+,
                     _ => panic!(concat!(
                         "invalid type index {} for type ", stringify!($name)), type_index),
                 }
@@ -423,7 +431,7 @@ macro_rules! define_variadic_struct {
         impl<'a> $crate::VariadicRef for $name<'a> {
             fn size_in_bytes(&self) -> usize {
                 match *self {
-                    $($name::$type(_) => $type::SIZE_IN_BYTES),+
+                    $($name::$type(_) => <$type as $crate::Struct<'a>>::SIZE_IN_BYTES),+
                 }
             }
         }
@@ -433,12 +441,12 @@ macro_rules! define_variadic_struct {
         }
 
         impl<'a> $item_builder_name<'a> {
-            $(pub fn $add_type_fn(&mut self) -> <$type as $crate::Ref>::Mut {
+            $(pub fn $add_type_fn(&mut self) -> <$type as $crate::Struct<'a>>::ItemMut {
                 let old_len = self.data.len();
-                let increment = 1 + $type::SIZE_IN_BYTES;
+                let increment = 1 + <$type as $crate::Struct<'a>>::SIZE_IN_BYTES;
                 self.data.resize(old_len + increment, 0);
                 self.data[old_len - $crate::PADDING_SIZE] = $type_index;
-                <$type as $crate::Ref>::Mut::from(
+                <$type as $crate::Struct<'a>>::ItemMut::from(
                     &mut self.data[1 + old_len - $crate::PADDING_SIZE] as *mut _
                 )
             })*
@@ -909,8 +917,8 @@ mod test {
         );
 
         define_variadic_struct!(Ts, RefTs, BuilderTs, IndexType32,
-            0 => (RefA, add_a),
-            1 => (RefB, add_b));
+            0 => (A, add_a),
+            1 => (B, add_b));
 
         define_archive!(SubArch, SubArchBuilder, "SubArch schema";
             ;  // struct resources

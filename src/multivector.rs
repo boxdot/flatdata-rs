@@ -65,8 +65,8 @@ use std::marker;
 /// );
 ///
 /// define_variadic_struct!(AB, RefAB, BuilderAB, Idx,
-///     0 => (RefA, add_a),
-///     1 => (RefB, add_b)
+///     0 => (A, add_a),
+///     1 => (B, add_b)
 /// );
 ///
 /// // create multivector and serialize some data
@@ -106,7 +106,7 @@ use std::marker;
 /// let mut item = mv.at(0);
 /// let a = item.next().unwrap();
 /// match a {
-///     RefAB::RefA(ref a) => {
+///     RefAB::A(ref a) => {
 ///         assert_eq!(a.x(), 1);
 ///         assert_eq!(a.y(), 2);
 ///     },
@@ -114,7 +114,7 @@ use std::marker;
 /// }
 /// let b = item.next().unwrap();
 /// match b {
-///     RefAB::RefB(ref b) => {
+///     RefAB::B(ref b) => {
 ///         assert_eq!(b.id(), 42);
 ///     },
 ///     _ => assert!(false),
@@ -223,7 +223,6 @@ where
 #[cfg(test)]
 #[allow(dead_code)]
 mod tests {
-    use archive::Ref;
     use arrayview::ArrayView;
     use memstorage::MemoryResourceStorage;
     use multiarrayview::MultiArrayView;
@@ -242,18 +241,15 @@ mod tests {
         (y, set_y, u32, 16, 16)
     );
 
-    define_variadic_struct!(VariantFactory, Variant, VariantItemBuilder, Idx, 0 => (RefA, add_a) );
+    define_variadic_struct!(Variant, RefVariant, BuilderVariant, Idx, 0 => (A, add_a) );
 
     #[test]
     fn test_multi_vector() {
         let mut storage = MemoryResourceStorage::new("/root/resources".into());
         {
-            let mut mv = create_multi_vector::<Idx, VariantFactory>(
-                &mut storage,
-                "multivector",
-                "Some schema",
-            )
-            .expect("failed to create MultiVector");
+            let mut mv =
+                create_multi_vector::<Idx, Variant>(&mut storage, "multivector", "Some schema")
+                    .expect("failed to create MultiVector");
             {
                 let mut item = mv.grow().expect("grow failed");
                 {
@@ -287,14 +283,14 @@ mod tests {
         let mut item = mv.at(0);
         let a = item.next().unwrap();
         match a {
-            Variant::RefA(ref a) => {
+            RefVariant::A(ref a) => {
                 assert_eq!(a.x(), 1);
                 assert_eq!(a.y(), 2);
             }
         }
         let b = item.next().unwrap();
         match b {
-            Variant::RefA(ref a) => {
+            RefVariant::A(ref a) => {
                 assert_eq!(a.x(), 3);
                 assert_eq!(a.y(), 4);
             }

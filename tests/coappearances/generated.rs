@@ -478,10 +478,10 @@ define_struct!(
 /// Builtin union type of Nickname, Description, UnaryRelation, BinaryRelation.
 define_variadic_struct!(VerticesData, RefVerticesData, BuilderVertices,
     IndexType32,
-    0 => (RefNickname, add_nickname),
-    1 => (RefDescription, add_description),
-    2 => (RefUnaryRelation, add_unary_relation),
-    3 => (RefBinaryRelation, add_binary_relation));
+    0 => (Nickname, add_nickname),
+    1 => (Description, add_description),
+    2 => (UnaryRelation, add_unary_relation),
+    3 => (BinaryRelation, add_binary_relation));
 
 define_archive!(Graph, GraphBuilder,
     schema::structs::GRAPH;

@@ -101,7 +101,7 @@ fn read_and_validate_coappearances() {
     let data: Vec<_> = vertices_data.at(0).collect();
     assert_eq!(data.len(), 1);
     match data[0] {
-        coappearances::RefVerticesData::RefUnaryRelation(ref data) => {
+        coappearances::RefVerticesData::UnaryRelation(ref data) => {
             assert_eq!(substring(strings, data.kind_ref()), "maid");
             assert_eq!(
                 substring(strings, vertices.at(data.to_ref() as usize).name_ref()),
@@ -114,7 +114,7 @@ fn read_and_validate_coappearances() {
     let data: Vec<_> = vertices_data.at(1).collect();
     assert_eq!(data.len(), 1);
     match data[0] {
-        coappearances::RefVerticesData::RefUnaryRelation(ref data) => {
+        coappearances::RefVerticesData::UnaryRelation(ref data) => {
             assert_eq!(substring(strings, data.kind_ref()), "housekeeper");
             assert_eq!(
                 substring(strings, vertices.at(data.to_ref() as usize).name_ref()),
@@ -127,7 +127,7 @@ fn read_and_validate_coappearances() {
     let data: Vec<_> = vertices_data.at(vertices_data.len() - 1).collect();
     assert_eq!(data.len(), 1);
     match data[0] {
-        coappearances::RefVerticesData::RefUnaryRelation(ref data) => {
+        coappearances::RefVerticesData::UnaryRelation(ref data) => {
             assert_eq!(substring(strings, data.kind_ref()), "gambling friend");
             assert_eq!(
                 substring(strings, vertices.at(data.to_ref() as usize).name_ref()),
@@ -222,19 +222,19 @@ fn copy_coappearances_archive(
         let mut new_item = vertices_data.grow().expect("grow failed");
         for element in item {
             match element {
-                coappearances::RefVerticesData::RefNickname(ref nickname) => {
+                coappearances::RefVerticesData::Nickname(ref nickname) => {
                     let mut new_element = new_item.add_nickname();
                     new_element.fill_from(nickname);
                 }
-                coappearances::RefVerticesData::RefDescription(ref desc) => {
+                coappearances::RefVerticesData::Description(ref desc) => {
                     let mut new_element = new_item.add_description();
                     new_element.fill_from(desc);
                 }
-                coappearances::RefVerticesData::RefUnaryRelation(ref rel) => {
+                coappearances::RefVerticesData::UnaryRelation(ref rel) => {
                     let mut new_element = new_item.add_unary_relation();
                     new_element.fill_from(rel);
                 }
-                coappearances::RefVerticesData::RefBinaryRelation(ref rel) => {
+                coappearances::RefVerticesData::BinaryRelation(ref rel) => {
                     let mut new_element = new_item.add_binary_relation();
                     new_element.fill_from(rel);
                 }
