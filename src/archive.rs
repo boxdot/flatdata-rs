@@ -44,19 +44,13 @@ pub use std::marker;
 /// A type in flatdata used for reading data.
 ///
 /// Each struct reference in generated code implements this trait.
-pub trait Ref: Clone + Debug + PartialEq + From<*const u8> {
-    /// Raw pointer to the data.
-    fn as_ptr(&self) -> *const u8;
-}
+pub trait Ref: Clone + Debug + PartialEq + From<*const u8> {}
 
 /// A mutable type in flatdata used for writing data.
 ///
 /// Each struct reference in generated code has a corresponding type with suffix
 /// `Mut` which implements this trait.
-pub trait RefMut: Debug + From<*mut u8> {
-    /// Raw pointer to the data.
-    fn as_ptr(&self) -> *const u8;
-}
+pub trait RefMut: Debug + From<*mut u8> {}
 
 /// A factory trait used to bind lifetime to Ref implementations
 ///
@@ -294,11 +288,7 @@ macro_rules! define_struct {
             }
         }
 
-        impl<'a> $crate::Ref for $name<'a> {
-            fn as_ptr(&self) -> *const u8 {
-                self.data
-            }
-        }
+        impl<'a> $crate::Ref for $name<'a> {}
 
         pub struct $name_mut<'a> {
             data: *mut u8,
@@ -341,11 +331,7 @@ macro_rules! define_struct {
             }
         }
 
-        impl<'a> $crate::RefMut for $name_mut<'a> {
-            fn as_ptr(&self) -> *const u8 {
-                self.data
-            }
-        }
+        impl<'a> $crate::RefMut for $name_mut<'a> {}
 
         impl<'a> ::std::convert::AsRef<$name<'a>> for $name_mut<'a> {
             fn as_ref(&self) -> &$name<'a> {
