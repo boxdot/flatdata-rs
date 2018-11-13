@@ -86,32 +86,11 @@ pub trait IndexStruct<'a>: Struct<'a> {
     fn set_index(data: Self::ItemMut, value: usize);
 }
 
-/// Implement IndexStruct fdr all Factories that produce Index/IndexMut
-impl<'a, F: Struct<'a>> IndexStruct<'a> for F
-where
-    F::Item: Index,
-    F::ItemMut: IndexMut,
-{
-    fn index(data: Self::Item) -> usize {
-        data.value()
-    }
-
-    fn set_index(mut data: Self::ItemMut, value: usize) {
-        data.set_value(value);
-    }
-}
-
 /// A type in archive used as index of a `MultiArrayView`.
-pub trait Index: Ref {
-    /// Returns the index value.
-    fn value(&self) -> usize;
-}
+pub trait Index: Ref {}
 
 /// A type in archive used as mutable index of a `MultiVector`.
-pub trait IndexMut: RefMut {
-    /// Sets index value.
-    fn set_value(&mut self, value: usize);
-}
+pub trait IndexMut: RefMut {}
 
 /// Index specifying a variadic type of `MultiArrayView`.
 pub type TypeIndex = u8;
@@ -329,15 +308,13 @@ macro_rules! define_index {
             (value, set_value, u64, 0, $size_in_bits)
         );
 
-        impl<'a> $crate::Index for $name<'a> {
-            fn value(&self) -> usize {
-                self.value() as usize
+        impl<'a> $crate::IndexStruct<'a> for $factory {
+            fn index(data: Self::Item) -> usize {
+                data.value() as usize
             }
-        }
 
-        impl<'a> $crate::IndexMut for $name_mut<'a> {
-            fn set_value(&mut self, value: usize) {
-                self.set_value(value as u64);
+            fn set_index(mut data: Self::ItemMut, value: usize) {
+                data.set_value(value as u64);
             }
         }
     };
