@@ -299,21 +299,19 @@ macro_rules! define_struct {
             pub fn fill_from(&mut self, other: &$name) {
                 $(self.$field_setter(other.$field());)*
             }
+
+            pub fn into_ref(self) -> $name<'a> {
+                $name{ data : self.data, _phantom : $crate::marker::PhantomData }
+            }
         }
 
         impl<'a> ::std::fmt::Debug for $name_mut<'a> {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-                self.as_ref().fmt(f)
+                $name{ data : self.data, _phantom : $crate::marker::PhantomData }.fmt( f )
             }
         }
 
         impl<'a> $crate::RefMut for $name_mut<'a> {}
-
-        impl<'a> ::std::convert::AsRef<$name<'a>> for $name_mut<'a> {
-            fn as_ref(&self) -> &$name<'a> {
-                unsafe { &*(self as *const $name_mut as *const $name) }
-            }
-        }
     };
 }
 
