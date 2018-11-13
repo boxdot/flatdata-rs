@@ -264,7 +264,7 @@ macro_rules! define_struct {
         impl<'a> ::std::fmt::Debug for $name<'a> {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 write!(f,
-                    concat!(stringify!($name), " {{ ",
+                    concat!(stringify!($factory), " {{ ",
                         intersperse!($(concat!( stringify!($field), ": {:?}")), *), " }}"),
                     $(self.$field(),)*)
             }
@@ -761,7 +761,7 @@ mod test {
         );
         let a = StructBuf::<A>::new();
         let output = format!("{:?}", a);
-        assert_eq!(output, "StructBuf { resource: RefA { x: 0, y: 0 } }");
+        assert_eq!(output, "StructBuf { resource: A { x: 0, y: 0 } }");
     }
 
     macro_rules! define_enum_test {
@@ -790,11 +790,11 @@ mod test {
                 );
                 let mut a = StructBuf::<A>::new();
                 let output = format!("{:?}", a);
-                assert_eq!(output, "StructBuf { resource: RefA { x: X } }");
+                assert_eq!(output, "StructBuf { resource: A { x: X } }");
 
                 a.get_mut().set_x(Variant::Y);
                 let output = format!("{:?}", a);
-                assert_eq!(output, "StructBuf { resource: RefA { x: Y } }");
+                assert_eq!(output, "StructBuf { resource: A { x: Y } }");
             }
         };
     }
