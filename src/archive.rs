@@ -52,7 +52,7 @@ pub trait Ref: Clone + Debug + PartialEq {}
 /// `Mut` which implements this trait.
 pub trait RefMut: Debug {}
 
-/// A factory trait used to bind lifetime to Ref implementations
+/// A factory trait used to bind lifetime to Ref implementations.
 ///
 /// Vector/ArrayView-like classes cannot be directly implemented over the
 /// structs since that binds lifetime too early. Instead this generic factory
@@ -63,21 +63,21 @@ pub trait Struct<'a> {
     /// Size of an object of this type in bytes.
     const SIZE_IN_BYTES: usize;
 
-    /// Item this factory will produce
+    /// Item this factory will produce.
     type Item: Ref;
 
-    /// create a new item from a slice
+    /// create a new item from a slice.
     fn create(&'a [u8]) -> Self::Item;
 
-    /// Item this factory will produce
+    /// Item this factory will produce.
     type ItemMut: RefMut;
 
-    /// create a new item from a slice
+    /// Create a new item from a slice.
     fn create_mut(&'a mut [u8]) -> Self::ItemMut;
 }
 
-/// A specialized Struct factory producing Index items
-/// Used primarily by the MultiVector/MultiArrayView
+/// A specialized Struct factory producing Index items.
+/// Used primarily by the MultiVector/MultiArrayView.
 pub trait IndexStruct<'a>: Struct<'a> {
     /// Provide getter for index
     fn index(data: Self::Item) -> usize;
@@ -106,16 +106,16 @@ pub trait VariadicRef: Clone + Debug + PartialEq {
     fn size_in_bytes(&self) -> usize;
 }
 
-/// A type used to create VariadicStructs
+/// A type used to create VariadicStructs.
 ///
 /// Vector/ArrayView-like classes cannot be directly implemented over the
 /// structs since that binds lifetime too early. Instead this generic factory
-/// and Higher-Rank-Trait-Bounds are used to emulate higher-kinded-generics
+/// and Higher-Rank-Trait-Bounds are used to emulate higher-kinded-generics.
 pub trait VariadicStruct<'a> {
     /// Reader type
     type Item: VariadicRef;
 
-    /// Create a reader for specific type of data
+    /// Create a reader for specific type of data.
     fn create(TypeIndex, &'a [u8]) -> Self::Item;
 
     /// Associated type used for building an item in `MultiVector` based on
@@ -127,7 +127,7 @@ pub trait VariadicStruct<'a> {
     /// enum variant.
     type ItemMut;
 
-    /// Create a builder for a list of VariadicRef
+    /// Create a builder for a list of VariadicRef.
     fn create_mut(&'a mut Vec<u8>) -> Self::ItemMut;
 }
 
