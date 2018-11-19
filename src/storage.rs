@@ -13,6 +13,7 @@ use std::ptr;
 use std::rc::Rc;
 use std::slice;
 use std::str;
+use std::thread;
 
 pub trait Stream: Write + Seek {}
 
@@ -312,6 +313,15 @@ impl ResourceHandle {
         }
         self.stream = None;
         Ok(())
+    }
+}
+
+impl Drop for ResourceHandle {
+    fn drop(&mut self) {
+        if !thread::panicking() {
+            // Only panic in case we are dropping the handle normally
+            assert!(!self.is_open(), "Resource not closed");
+        }
     }
 }
 
