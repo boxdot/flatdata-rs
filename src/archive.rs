@@ -56,7 +56,7 @@ pub trait RefMut: Debug {}
 ///
 /// Vector/ArrayView-like classes cannot be directly implemented over the
 /// structs since that binds lifetime too early. Instead this generic factory
-/// and Higher-Rank-Trait-Bounds are used to emulate higher-kinded-generics
+/// and Higher-Rank-Trait-Bounds are used to emulate higher-kinded-generics.
 pub trait Struct<'a> {
     /// Schema of the type. Used only for debug and inspection purposes.
     const SCHEMA: &'static str;
@@ -66,13 +66,13 @@ pub trait Struct<'a> {
     /// Item this factory will produce.
     type Item: Ref;
 
-    /// create a new item from a slice.
+    /// Creates a new item from a slice.
     fn create(&'a [u8]) -> Self::Item;
 
     /// Item this factory will produce.
     type ItemMut: RefMut;
 
-    /// Create a new item from a slice.
+    /// Creates a new item from a slice.
     fn create_mut(&'a mut [u8]) -> Self::ItemMut;
 }
 
@@ -115,7 +115,7 @@ pub trait VariadicStruct<'a> {
     /// Reader type
     type Item: VariadicRef;
 
-    /// Create a reader for specific type of data.
+    /// Creates a reader for specific type of data.
     fn create(TypeIndex, &'a [u8]) -> Self::Item;
 
     /// Associated type used for building an item in `MultiVector` based on
@@ -127,7 +127,7 @@ pub trait VariadicStruct<'a> {
     /// enum variant.
     type ItemMut;
 
-    /// Create a builder for a list of VariadicRef.
+    /// Creates a builder for a list of VariadicRef.
     fn create_mut(&'a mut Vec<u8>) -> Self::ItemMut;
 }
 
