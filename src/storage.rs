@@ -374,3 +374,24 @@ fn write_padding(stream: &mut Stream) -> io::Result<()> {
     let zeroes: [u8; PADDING_SIZE] = [0; PADDING_SIZE];
     stream.write_all(&zeroes)
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    #[should_panic]
+    fn test_panick_on_leak() {
+        let stream = Rc::new(RefCell::new(Cursor::new(Vec::new())));
+        let _h = ResourceHandle::new(stream);
+        // leak h without closing it -> should panic
+    }
+
+    #[test]
+    fn test_not_panick_on_close() -> io::Result<()> {
+        let stream = Rc::new(RefCell::new(Cursor::new(Vec::new())));
+        let mut h = ResourceHandle::new(stream)?;
+        h.close()
+    }
+}
