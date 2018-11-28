@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::io::{self, Cursor};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::slice;
 
@@ -40,10 +40,10 @@ impl MemoryResourceStorage {
     ///
     /// Resources will be placed in ephemeral memory with prefix `path`. A path
     /// has to be provided to unify the interface with `FileResourceStorage`.
-    pub fn new<P: AsRef<Path>>(path: P) -> Rc<Self> {
+    pub fn new<P: Into<PathBuf>>(path: P) -> Rc<Self> {
         Rc::new(Self {
             storage: MemoryStorage::default(),
-            path: path.as_ref().into(),
+            path: path.into(),
         })
     }
 }

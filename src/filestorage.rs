@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::slice;
 
@@ -42,10 +42,10 @@ pub struct FileResourceStorage {
 
 impl FileResourceStorage {
     /// Create an empty memory mapped file storage at a given path.
-    pub fn new<P: AsRef<Path>>(path: P) -> Rc<Self> {
+    pub fn new<P: Into<PathBuf>>(path: P) -> Rc<Self> {
         Rc::new(Self {
             storage: MemoryMappedFileStorage::default(),
-            path: path.as_ref().into(),
+            path: path.into(),
         })
     }
 }
