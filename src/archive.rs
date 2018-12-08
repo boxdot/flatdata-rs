@@ -65,13 +65,13 @@ pub trait Struct<'a>: Clone {
     type Item: Ref;
 
     /// Creates a new item from a slice.
-    fn create(_: &'a [u8]) -> Self::Item;
+    fn create(data: &'a [u8]) -> Self::Item;
 
     /// Item this factory will produce.
     type ItemMut: RefMut;
 
     /// Creates a new item from a slice.
-    fn create_mut(_: &'a mut [u8]) -> Self::ItemMut;
+    fn create_mut(data: &'a mut [u8]) -> Self::ItemMut;
 }
 
 /// A specialized Struct factory producing Index items.
@@ -114,7 +114,7 @@ pub trait VariadicStruct<'a>: Clone {
     type Item: VariadicRef;
 
     /// Creates a reader for specific type of data.
-    fn create(_: TypeIndex, _: &'a [u8]) -> Self::Item;
+    fn create(data: TypeIndex, _: &'a [u8]) -> Self::Item;
 
     /// Associated type used for building an item in `MultiVector` based on
     /// this variadic type.
@@ -126,7 +126,7 @@ pub trait VariadicStruct<'a>: Clone {
     type ItemMut;
 
     /// Creates a builder for a list of VariadicRef.
-    fn create_mut(_: &'a mut Vec<u8>) -> Self::ItemMut;
+    fn create_mut(data: &'a mut Vec<u8>) -> Self::ItemMut;
 }
 
 /// A flatdata archive representing serialized data.
